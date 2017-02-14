@@ -71,7 +71,7 @@ def remind(user, channel, argv):
 @yui.event('tick')
 def tick():
     cursor = yui.db.execute("""\
-        SELECT id, nick, channel, msg, time(date_added) FROM remind
+        SELECT id, nick, channel, msg, time(datetime(date_added, 'localtime')) FROM remind
         WHERE date_remind < current_timestamp ORDER BY date_added LIMIT 1""")
     rows = cursor.fetchall()
     if len(rows) < 1:
