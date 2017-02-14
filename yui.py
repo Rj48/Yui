@@ -11,6 +11,7 @@ import re
 import sqlite3
 import threading
 import time
+import traceback  # printing stack traces
 from collections import OrderedDict  # for more consistent settings saving
 
 from ircclient import IRCClient
@@ -165,6 +166,7 @@ class Yui(IRCClient):
         except Exception as ex:
             if eventName != 'log':
                 self.log('error', 'Exception occurred processing event "%s": %s' % (eventName, repr(ex)))
+                self.log('error', traceback.format_exc())
         return ret
 
     def ignore(self, seconds, nick, user='.*', host='.*'):
@@ -373,6 +375,12 @@ class Yui(IRCClient):
 
     def on_join(self, user, channel):
         self.fire_event('join', user=user, channel=channel)
+
+    def on_part(self, user, channel):
+        self.fire_event('part', user=user, channel=channel)
+
+    def on_quit(self, user):
+        self.fire_event('quit', user=user)
 
     def on_log(self, error):
         self.log('error', error)

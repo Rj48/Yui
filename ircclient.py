@@ -35,6 +35,8 @@ class IRCClient(object):
         self.realname = realname
         self.timeout = timeout
 
+        self.channel_nicks = {}  # channel name -> set of nicks
+
         self.max_msg_len = 400
 
         self.bad_chars_regex = re.compile(r'[\r\n]+')
@@ -76,6 +78,14 @@ class IRCClient(object):
         dec += trail
         return dec
 
+    def joined_channels(self):
+        return self.channel_nicks.keys()
+
+    def nicks_in_channel(self, channel):
+        if channel not in self.channel_nicks:
+            return set()
+        return self.channel_nicks[channel]
+
     def send_privmsg(self, channel, msg):
         """Send a message to a channel/user"""
         if not channel or not msg:
@@ -92,10 +102,13 @@ class IRCClient(object):
     def join(self, channel):
         """Join a channel"""
         self.send_raw('JOIN %s' % channel)
+        if channel not in self.channel_nicks.keys():
+            self.channel_nicks[channel] = set()
 
     def part(self, channel):
         """Leave a channel"""
         self.send_raw('PART %s' % channel)
+        self.channel_nicks.pop(channel, None)
 
     def quit(self, reason):
         """Quit from the server and end the main loop gracefully"""
@@ -144,8 +157,20 @@ class IRCClient(object):
         return Prefix(nick, user, host, prefix)
 
     def cmd_NICK(self, prefix, args):
+        new_nick = args[0]
+
+        # update own nick
         if prefix.nick == self.nick:
-            self.nick = args[0]
+            self.nick = new_nick
+
+        # update other people's nicks
+        for chan, nicks in self.channel_nicks.items():
+            try:
+                nicks.discard(prefix.nick)
+                nicks.add(new_nick)
+            except KeyError:
+                pass
+
         self.on_nick(prefix, args[0])
 
     def cmd_PING(self, prefix, args):
@@ -155,6 +180,8 @@ class IRCClient(object):
         self.on_privmsg(prefix, args[0], args[1])
 
     def cmd_QUIT(self, prefix, args):
+        for chan, nicks in self.channel_nicks.items():
+            nicks.discard(prefix.nick)
         self.on_quit(prefix)
 
     def cmd_ERROR(self, prefix, args):
@@ -163,7 +190,22 @@ class IRCClient(object):
 
     def cmd_JOIN(self, prefix, args):
         channel = args[0]
+
+        # add newly joined nick
+        if channel in self.channel_nicks.keys():
+            self.channel_nicks[channel].add(prefix.nick)
+
+        # send a WHO, if we joined somewhere
+        if prefix.nick == self.nick:
+            self.send_raw('WHO ' + channel)
+
         self.on_join(prefix, channel)
+
+    def cmd_PART(self, prefix, args):
+        chan = args[0]
+        if chan in self.channel_nicks.keys():
+            self.channel_nicks[chan].discard(prefix.nick)
+        self.on_part(prefix, chan)
 
     # ErrNickNameInUse
     def cmd_433(self, prefix, args):
@@ -177,6 +219,16 @@ class IRCClient(object):
     # EndOfMotd
     def cmd_376(self, prefix, args):
         self.on_serverready()
+
+    # whoreply
+    def cmd_352(self, prefix, args):
+        try:
+            chan = args[1]
+            nick = args[5]
+            if chan in self.channel_nicks.keys():
+                self.channel_nicks[chan].add(nick)
+        except:
+            pass
 
     def on_nick(self, prefix, new):
         pass
