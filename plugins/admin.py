@@ -1,6 +1,8 @@
 # coding=utf-8
 
 import re
+import sys
+import os
 
 REGEX_TIME = re.compile(r'^(?:(?P<days>\d+)[dD])?(?:(?P<hours>\d+)[hH])?(?:(?P<minutes>\d+)[mM])?$')
 
@@ -77,6 +79,15 @@ def quit_bot(argv):
         yui.quit("")
     else:
         yui.quit(argv[1])
+
+
+@yui.admin
+@yui.command('restart')
+def restart():
+    """Restart the bot. Usage: restart"""
+    yui.quit('')
+    exe = sys.executable
+    os.execl(exe, exe, *sys.argv)
 
 
 @yui.admin
