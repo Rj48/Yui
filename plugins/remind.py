@@ -111,12 +111,12 @@ def join(user, channel):
 def say_tell(user, channel):
     cursor = yui.db.execute("""\
         SELECT nick,channel,msg,added_by FROM tell
-        WHERE nick=? AND channel=?""", (user.nick, channel))
+        WHERE nick=? AND channel=? COLLATE NOCASE""", (user.nick, channel))
     rows = cursor.fetchall()
     if len(rows) < 1:
         return
     cursor = yui.db.execute("""\
-        DELETE FROM tell WHERE nick=? AND channel=?""", (user.nick, channel))
+        DELETE FROM tell WHERE nick=? AND channel=? COLLATE NOCASE""", (user.nick, channel))
     yui.db.commit()
     tells = ['<%s> %s' % (r[3], r[2]) for r in rows]
     yui.send_msg(channel, 'Hi %s, I was told to tell you: %s' % (user.nick, ' | '.join(tells)))
