@@ -13,7 +13,7 @@ class TitleParser(html.parser.HTMLParser):
         self.title = ''
 
     def handle_starttag(self, tag, attrs):
-        if tag == 'title':
+        if tag == 'title' and not self.done:
             self.reading = True
 
     def handle_endtag(self, tag):
