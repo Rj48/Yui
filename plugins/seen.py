@@ -4,19 +4,30 @@ import sqlite3
 
 yui.db.execute("""\
 CREATE TABLE IF NOT EXISTS seen(
-    nick TEXT PRIMARY KEY,
+    nick TEXT PRIMARY KEY COLLATE NOCASE,
     action TEXT,
     action_date DATETIME DEFAULT current_timestamp,
     message TEXT DEFAULT '',
-    message_date DATETIME DEFAULT current_timestamp);""")
+    message_date DATETIME DEFAULT current_timestamp,
+    message_channel TEXT DEFAULT '');""")
 yui.db.commit()
 
 
 def action(nick, act):
-    try:
-        yui.db.execute('INSERT INTO seen(nick, action) VALUES(?,?)', (nick, act))
-    except sqlite3.IntegrityError:
-        yui.db.execute('UPDATE seen SET action = ? WHERE nick = ?', (act, nick))
+    yui.db.execute('INSERT OR IGNORE INTO seen(nick) VALUES(?)', (nick,))
+    yui.db.execute('UPDATE seen SET action = ?, action_date = current_timestamp WHERE nick = ?', (act, nick))
+    yui.db.commit()
+
+
+@yui.event('msgRecv')
+def recv(user, msg, channel):
+    if not channel.startswith("#"):
+        return
+
+    msg = '<%s> %s' % (user.nick, msg)
+
+    yui.db.execute('INSERT OR IGNORE INTO seen(nick) VALUES(?)', (user.nick,))
+    yui.db.execute('UPDATE seen SET message = ?, message_channel = ?, message_date = current_timestamp WHERE nick = ?', (msg, channel, user.nick))
     yui.db.commit()
 
 
@@ -43,6 +54,20 @@ def seen(argv, channel):
 
     nick = argv[1]
 
+    action_part = ''
+    msg_part = ''
+
+    cursor = yui.db.execute("""
+        SELECT nick, action, datetime(action_date, 'localtime'),
+            message, message_channel, datetime(message_date, 'localtime')
+        FROM seen WHERE nick = ?""", (argv[1],))
+    rows = cursor.fetchall()
+    if len(rows) > 0:
+        row = rows[0]
+        if row[1]:
+            action_part = '%s was last seen %s on %s.' % (argv[1], row[1], row[2])
+        if row[3]:
+            msg_part = 'Last msg %s in %s: %s' % (row[5], row[4], row[3])
 
     in_chans = []
     for chan in yui.joined_channels():
@@ -50,12 +75,15 @@ def seen(argv, channel):
            in_chans.append(chan)
     if len(in_chans) > 0:
         if channel in in_chans:
-            return argv[1] + ' is currently here!'
-        return '%s is currently in channel(s): %s' % (nick, ', '.join(in_chans))
+            action_part =  argv[1] + ' is currently here!'
+        else:
+            action_part = '%s is currently in channel(s) %s.' % (nick, ', '.join(in_chans))
 
-    cursor = yui.db.execute("SELECT nick, action, datetime(action_date, 'localtime') FROM seen WHERE nick = ? COLLATE NOCASE", (argv[1],))
-    rows = cursor.fetchall()
-    if len(rows) < 1:
-        return 'Who?'
-    row = rows[0]
-    return '%s was last seen %s on %s' % (row[0], row[1], row[2])
+    if action_part:
+        return action_part + (' ' + msg_part if msg_part else '')
+
+    if msg_part:
+        return "%s's %s" % (argv[1], msg_part)
+
+    return "Who?"
+
