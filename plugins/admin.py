@@ -179,3 +179,10 @@ def unplug(argv):
         pass
     # plugin couldn't be properly unloaded
     return 'Couldn\'t unload %s' % argv[1]
+
+
+@yui.admin
+@yui.command('loadconfig')
+def loadconfig():
+    """"(Re-)Loads the config file"""
+    return "Done." if yui.load_config() else "Couldn't load config"
