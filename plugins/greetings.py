@@ -3,7 +3,7 @@
 import random
 import re
 
-phrases = [
+builtin_phrases = [
     ['hi', 'hello'],
     ['yo', 'sup'],
     ['hallo', 'tag', 'moin'],
@@ -11,6 +11,7 @@ phrases = [
     ['よ', 'やぁ', 'おっす']
 ]
 
+phrases = yui.config_val("greetings", default=builtin_phrases)
 
 def getRandomExcept(arr, ex):
     if not ex in arr:
