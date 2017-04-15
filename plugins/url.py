@@ -4,6 +4,7 @@ import html.parser
 import re
 import urllib.request
 
+DEFAULT_AGENT = 'Yui'
 
 class TitleParser(html.parser.HTMLParser):
     def __init__(self):
@@ -60,7 +61,11 @@ def get_url_title(url):
     title = ''
     parser = TitleParser()
     try:
-        resp = urllib.request.urlopen(url, timeout=5)
+        headers = {
+            'User-Agent': yui.config_val('httpUserAgent', default=DEFAULT_AGENT)
+        }
+        req = urllib.request.Request(url, data=None, headers=headers)
+        resp = urllib.request.urlopen(req, timeout=5)
 
         # try the charset set in the html header first, if there is one
         if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:
