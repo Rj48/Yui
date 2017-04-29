@@ -7,7 +7,9 @@ import time
 UPDATE_INTERVAL = yui.config_val('rss', 'interval', default=30)  # update interval in minutes
 LAST_UPDATE = 0
 FETCHED = {}
-TICKS = 0
+MSG_TICKS = 0
+MSG_RATE = yui.config_val('rss', 'rate', default=1)  # number of ticks (roughly seconds) between messages
+
 
 yui.db.execute("""\
 CREATE TABLE IF NOT EXISTS rss_feeds(
@@ -38,24 +40,29 @@ def fetch_thread(feeds):
 
 @yui.event('tick')
 def update():
-    global TICKS
+    global MSG_TICKS
     global LAST_UPDATE
     global FETCHED
 
-    TICKS += 1
-    if TICKS > 30:
+    MSG_TICKS += 1
+    if MSG_TICKS >= MSG_RATE:
+        msg_sent = False
         for feed, entries in FETCHED.items():
+            if len(entries) < 1:
+                continue
+
             subs = yui.db.execute('SELECT channel, alias FROM rss_subscriptions WHERE feed_id = ?', (feed,))
             seen = yui.db.execute('SELECT entry_id FROM rss_seen WHERE feed_id=?', (feed,))
             seen = [s[0] for s in seen]
-            for e in entries[:]:
-                if e.id not in seen:
-                    yui.db.execute('INSERT OR IGNORE INTO rss_seen(feed_id, entry_id) VALUES(?, ?)', (feed, e.id))
-                    for s in subs:
-                        yui.send_msg(s[0], '[%s]%s %s' % (s[1], e.title, e.link))
-                entries.remove(e)
+
+            e = entries[0]
+            if e.id not in seen:
+                yui.db.execute('INSERT OR IGNORE INTO rss_seen(feed_id, entry_id) VALUES(?, ?)', (feed, e.id))
+                for s in subs:
+                    yui.send_msg(s[0], '[%s]%s %s' % (s[1], e.title, e.link))
+                    entries.remove(e)
             yui.db.commit()
-        TICKS = 0
+        MSG_TICKS = 0
 
     # fetch feeds every once in a while
     now = time.time()
@@ -81,7 +88,12 @@ def rss(user, channel, argv):
         if len(arg) < 2:
             return 'Usage: rss add <alias> <url>'
         if is_channel and not yui.is_authed(user):
-            return "You're not allowed to do that in a channel"
+            return "You're not allowed to do that."
+
+        parsed = feedparser.parse(arg[1])
+        if len(parsed.feed) < 1 or len(parsed.entries) < 1:
+            return "Doesn't look like a valid feed."
+
 
         # insert new feed
         yui.db.execute('INSERT OR IGNORE INTO rss_feeds(url) VALUES(?)', (arg[1],))
@@ -93,11 +105,10 @@ def rss(user, channel, argv):
             INSERT OR IGNORE INTO rss_subscriptions(channel, alias, feed_id) VALUES(?, ?, ?)""", (channel, arg[0], feed_id))
 
         # mark all past entries as seen to prevent flooding
-        parsed = feedparser.parse(arg[1])
         seen = [(feed_id, e.id) for e in parsed.entries]
         yui.db.executemany('INSERT OR IGNORE INTO rss_seen(feed_id, entry_id) VALUES(?, ?)', seen)
         yui.db.commit()
-        return 'Added!'
+        return 'Feed added!'
 
     if verb == 'list':
         if len(arg) < 1:
@@ -107,9 +118,9 @@ def rss(user, channel, argv):
             info = yui.db.execute('SELECT url FROM rss_subscriptions JOIN rss_feeds ON feed_id=id WHERE channel = ? and alias = ?', (channel, arg[0]))
             return info.fetchone()[0]
 
-    if verb == 'del':
+    if verb == 'rm':
         if len(arg) < 1:
-            return "Usage: rss del <alias>"
+            return "Usage: rss rm <alias>"
         if is_channel and not yui.is_authed(user):
             return "You're not allowed to do that in a channel"
         yui.db.execute('DELETE FROM rss_subscriptions WHERE channel = ? AND alias = ?', (channel, arg[0]))
