@@ -4,19 +4,25 @@ import subprocess
 
 @yui.admin
 @yui.threaded
-@yui.command('git_pull')
-def git_pull(argv):
-    """Does a git pull on the working dir of the bot. Usage: git_pull [repo]"""
+@yui.command('git')
+def git(argv):
+    """Basic git commands"""
 
-    args = ['git', 'pull']
-    if len(argv) > 1:
-        args.append(argv[1])
+    if len(argv) < 2:
+        return
 
-    proc = subprocess.Popen(args)
-    code = proc.wait()
-    if code == 0:
-        return "git pull's done!"
-    else:
-        return "git pull failed :("
+    verb = argv[1]
+    arg = argv[2:]
+    if verb == 'pull':
+        args = ['git', 'pull']
+        if len(arg) > 1:
+            args.append(argv[1])
+
+        proc = subprocess.Popen(args)
+        code = proc.wait()
+        if code == 0:
+            return "Pulled all the gits!"
+        else:
+            return "Couldn't pull the gits :("
 
 
