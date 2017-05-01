@@ -60,8 +60,8 @@ def update():
                 yui.db.execute('INSERT OR IGNORE INTO rss_seen(feed_id, entry_id) VALUES(?, ?)', (feed, e.id))
                 for s in subs:
                     yui.send_msg(s[0], '[%s]%s %s' % (s[1], e.title, e.link))
-                    entries.remove(e)
             yui.db.commit()
+            entries.remove(e)
         MSG_TICKS = 0
 
     # fetch feeds every once in a while
