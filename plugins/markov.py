@@ -1,23 +1,79 @@
 # coding=utf-8
 
 import re
-import threading
+import random
 
-import markovify
+STATE_SIZE = 2
 
-yui.db.execute("""\
-CREATE TABLE IF NOT EXISTS markov(
-    nick TEXT,
-    sentence TEXT);""")
-yui.db.commit()
 
-BUFFER_SIZE = 100  # messages to buffer before merging them into the models
-STATE_SIZE = 3
+class SqlMark:
+    def __init__(self, db, table_name='markov', state_size=3):
+        self.db = db
+        self.table_name = table_name
+        self.state_size = state_size
+        self.separator = ' '
 
-nick_models = {}  # mapping nick -> markov model
-msg_buffer = {}  # buffer for messages before they get merged
-msg_count = 0
-lock = threading.Lock()
+        db.execute("""\
+            CREATE TABLE IF NOT EXISTS %s(
+                tag TEXT COLLATE NOCASE,
+                prefix TEXT COLLATE NOCASE,
+                next_word TEXT COLLATE NOCASE,
+                occurrences INTEGER,
+                UNIQUE(tag, prefix, next_word));""" % self.table_name)
+        db.commit()
+
+    def add_sentence(self, tag, words):
+        words = self.state_size*[''] + words + ['']
+        num_words = len(words)
+        for i in range(0, num_words-self.state_size, 1):
+            prefix = words[i:i+self.state_size]
+            next_word = words[i+self.state_size].strip()
+            pref_join = self.join(prefix).strip()
+            self.db.execute("""\
+                INSERT OR IGNORE INTO %s(tag,prefix,next_word,occurrences)
+                VALUES(?,?,?,0);""" % self.table_name, (tag, pref_join, next_word))
+            self.db.execute("""\
+                UPDATE %s SET occurrences = occurrences + 1
+                WHERE tag = ? AND prefix = ? AND next_word = ?;""" % self.table_name, (tag, pref_join, next_word))
+
+    def commit(self):
+        self.db.commit()
+
+    def join(self, words):
+        j = self.separator.join([w for w in words if w != ''])
+        return j
+
+    def get_next_word(self, tag, prefix):
+        pref_join = self.join(prefix)
+        c = self.db.cursor()
+        c.execute("SELECT sum(occurrences) FROM %s WHERE tag = ? AND prefix = ?;" % self.table_name, (tag, pref_join))
+        max_occ = c.fetchone()[0]
+        if max_occ == 0 or max_occ is None:
+            return None
+
+        rand = random.randint(0, max_occ)
+        n = 0
+        c.execute("SELECT next_word, occurrences FROM %s WHERE tag = ? AND prefix = ?;" % self.table_name, (tag, pref_join))
+        for row in c:
+            n += row[1]
+            if n >= rand:
+                return None if row[0] == '' else row[0]
+        return None
+
+    def generate_sentence(self, tag, max_words=50):
+        prefix = ['']
+        result = []
+        while True:
+            next_word = self.get_next_word(tag, prefix)
+            if next_word is None or len(result) > max_words:
+                return ' '.join(result)
+            next_word = next_word.strip()
+            result.append(next_word)
+            prefix.append(next_word)
+            if len(prefix) > self.state_size:
+                prefix = prefix[-self.state_size:]
+
+m = SqlMark(yui.db, state_size=STATE_SIZE)
 
 
 @yui.admin
@@ -44,99 +100,33 @@ def load_file(argv):
         match = msg_regex.match(line)
         if not match:
             continue
-        n = match.group(1)
-        m = match.group(2)
-        buffer_msg(n, m)
-        num_lines += 1
-
-    merge_buffers()
-    return 'Loaded %d lines' % num_lines
-
-
-# add a message to the buffer
-def buffer_msg(nick, msg):
-    global msg_buffer
-    if nick not in msg_buffer:
-        msg_buffer[nick] = []
-    msg_buffer[nick].append(msg)
-
-
-# merge buffered messages into the existing models
-def merge_buffers():
-    global msg_buffer
-
-    def merge_thread(buffer):
-        global msg_buffer
-        for n, msgs in buffer.items():
-            n = n.lower()
-            try:
-                model = markovify.NewlineText('\n'.join(msgs), state_size=STATE_SIZE)
-            except:
-                continue
-            with lock:
-                if n not in nick_models:
-                    nick_models[n] = model
-                else:
-                    nick_models[n] = markovify.combine([nick_models[n], model])
-    threading.Thread(target=merge_thread, args=(dict(msg_buffer),)).start()
-
-    # save sentences to db
-    for n, msgs in msg_buffer.items():
-        yui.db.executemany('INSERT INTO markov(nick, sentence) VALUES(?, ?);', [(n, m) for m in msgs])
-        yui.db.commit()
-
-    msg_buffer = {}
-
-
-# load saved sentences from db
-def load_models():
-    global nick_models
-    c = yui.db.execute("SELECT lower(nick), group_concat(sentence, '\n') FROM markov GROUP BY nick;")
-    for row in c:
-        try:
-            if row[0] and row[1]:
-                nick_models[row[0]] = markovify.NewlineText(row[1], state_size=STATE_SIZE)
-        except:
+        nick = match.group(1)
+        msg = match.group(2)
+        spl = msg.split()
+        if len(spl) < 3:
             continue
-
-
-# generate a sentence for a given nick
-def generate_sentence(nick):
-    ret = nick_models[nick.lower()].make_sentence(tries=500)
-    if ret:
-        return ret
-    return None
+        m.add_sentence(nick, spl)
+        num_lines += 1
+    m.commit()
+    return 'Loaded %d lines' % num_lines
 
 
 # add new sentences as they come in
 @yui.event('msgRecv')
 def recv(channel, user, msg):
-    global msg_count
-
     if channel == user.nick:  # ignore query
         return
-
-    buffer_msg(user.nick, msg)
-    msg_count += 1
-
-    if msg_count > BUFFER_SIZE:
-        merge_buffers()
-        msg_count = 0
+    m.add_sentence(user.nick, msg.split())
+    m.commit()
 
 
-@yui.threaded
 @yui.command('markov', 'mark')
 def markov(argv, user):
     """Generate a random sentence for a given nick. Usage: markov [nick]"""
     name = user.nick
     if len(argv) > 1:
         name = argv[1]
-    if name.lower() not in nick_models.keys():
-        return "I don't have enough data for %s" % name
-    sent = generate_sentence(name)
-    if not sent:
+    sentence = m.generate_sentence(name)
+    if sentence == '':
         return "Couldn't generate a sentence :("
-    return '<%s> %s' % (name, sent)
-
-
-load_models()
+    return '<%s> %s' % (name, sentence)
