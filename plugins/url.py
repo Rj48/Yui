@@ -3,8 +3,10 @@
 import html.parser
 import re
 import urllib.request
+import urllib.error
 
 DEFAULT_AGENT = 'Yui'
+
 
 class TitleParser(html.parser.HTMLParser):
     def __init__(self):
@@ -35,8 +37,23 @@ class TitleParser(html.parser.HTMLParser):
             self.title += '&%s;' % ref
 
 
-def urlEncodeNonAscii(string):
+def url_encode_ascii(string):
     return re.sub('[\x80-\xFF]', lambda c: '%%%02x' % ord(c.group(0)), string)
+
+
+def humanify(num):
+    pre = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+    i = 0
+    for p in pre:
+        div = num / (1024**(i+1))
+        if div < 1.0:
+            break
+        num = div
+        i += 1
+    if i == 0:
+        return '%d%s' % (num, pre[i])
+    else:
+        return '%.2f%s' % (num, pre[i])
 
 
 # returns a properly encoded url (escaped unicode etc)
@@ -50,7 +67,7 @@ def get_encoded_url(url):
 
     # handle unicode URLs
     url = urllib.request.urlunparse(
-        p if i == 1 else urlEncodeNonAscii(p)
+        p if i == 1 else url_encode_ascii(p)
         for i, p in enumerate(parts)
     )
     return url
@@ -60,62 +77,65 @@ def get_url_title(url):
     enc = 'utf8'
     title = ''
     parser = TitleParser()
+    headers = {
+        'User-Agent': yui.config_val('httpUserAgent', default=DEFAULT_AGENT)
+    }
     try:
-        headers = {
-            'User-Agent': yui.config_val('httpUserAgent', default=DEFAULT_AGENT)
-        }
         req = urllib.request.Request(url, data=None, headers=headers)
         resp = urllib.request.urlopen(req, timeout=5)
+    except urllib.error.HTTPError as e:
+        return 'Status ' + e.code
+    except urllib.error.URLError as e:
+        return 'Error: ' + e.reason
 
-        # try the charset set in the html header first, if there is one
-        if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:
-            enc = resp.headers['content-type'].split('charset=')[-1]
+    # try the charset set in the html header, if there is one
+    if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:
+        enc = resp.headers['content-type'].split('charset=')[-1]
 
-        # read up to 1mb
+    # read up to 1mb
+    try:
         chunk = resp.read(1024 * 1024)
         parser.feed(chunk.decode(enc))
         if parser.done:
             title = parser.title
         parser.close()
-    except Exception as ex:
-        return None
-    else:
+
+        # got some title, try to decode it correctly
         if len(title) > 0:
-            for e in enc:
-                try:
-                    dec = title.decode(e)
-                    dec = parser.unescape(dec)
-                    return dec
-                except Exception as ex:
-                    pass
-        return title
+            esc = parser.unescape(title)
+            return 'Title: '+esc
+    except Exception as ex:
+        pass
+
+    # no title, try to output some other useful data
+    info = []
+    if 'content-type' in resp.headers:
+        info.append('Type: ' + resp.headers['content-type'].split(';')[0])
+    if 'content-length' in resp.headers:
+        info.append('Size: ' + humanify(int(resp.headers['content-length'])))
+
+    return ', '.join(info)
 
 
 @yui.event('msgRecv')
 def url(msg, channel):
     # find urls in channel message
-    words = msg.split(' ')
+    words = msg.split()
     titles = []
-    maxUrls = 5
-    foundTitle = False
+    max_urls = 3
     for w in words:
-        url = get_encoded_url(w)
-        if not url:
+        enc_url = get_encoded_url(w)
+        if not enc_url:
             continue
 
-        maxUrls -= 1
-        if maxUrls == 0:
+        title = get_url_title(enc_url)
+        if title:
+            titles.append(title.strip())
+
+        if len(titles) >= max_urls:
             break
 
-        title = get_url_title(url)
-        if title:
-            title = ' '.join(title.split())  # remove leading/trailing spaces, reduce repeated spaces to just one
-            titles.append('"%s"' % title)
-            foundTitle = True
-        else:
-            titles.append('[no title]')
-
     # don't say anything, if we couldn't get any titles
-    if foundTitle:
-        concat = ', '.join(titles)
+    if len(titles) > 0:
+        concat = ' \x035|\x03 '.join(titles)
         yui.send_msg(channel, concat)
