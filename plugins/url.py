@@ -100,7 +100,7 @@ def get_url_title(url):
             parser.close()
             if len(title) > 0:
                 esc = parser.unescape(title)
-                return 'Title: '+esc
+                return 'Title: '+esc.strip()
         except Exception as ex:
             pass
 
