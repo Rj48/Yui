@@ -42,18 +42,15 @@ def url_encode_ascii(string):
 
 
 def humanify(num):
-    pre = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
-    i = 0
+    pre = ['KiB', 'MiB', 'GiB', 'TiB']
+    if num < 1024:
+        return '%d Byte' % num
+    num /= 1024
     for p in pre:
-        div = num / (1024**(i+1))
+        div = num / 1024
         if div < 1.0:
-            break
+            return '%.2f%s' % (num, p)
         num = div
-        i += 1
-    if i == 0:
-        return '%d%s' % (num, pre[i])
-    else:
-        return '%.2f%s' % (num, pre[i])
 
 
 # returns a properly encoded url (escaped unicode etc)
@@ -74,9 +71,8 @@ def get_encoded_url(url):
 
 
 def get_url_title(url):
-    enc = 'utf8'
+    enc = ['utf8', 'iso-8869-1', 'shift-jis']
     title = ''
-    parser = TitleParser()
     headers = {
         'User-Agent': yui.config_val('httpUserAgent', default=DEFAULT_AGENT)
     }
@@ -90,22 +86,23 @@ def get_url_title(url):
 
     # try the charset set in the html header, if there is one
     if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:
-        enc = resp.headers['content-type'].split('charset=')[-1]
+        enc = enc + [resp.headers['content-type'].split('charset=')[-1]]
 
     # read up to 1mb
-    try:
-        chunk = resp.read(1024 * 1024)
-        parser.feed(chunk.decode(enc))
-        if parser.done:
-            title = parser.title
-        parser.close()
-
-        # got some title, try to decode it correctly
-        if len(title) > 0:
-            esc = parser.unescape(title)
-            return 'Title: '+esc
-    except Exception as ex:
-        pass
+    chunk = resp.read(1024 * 1024)
+    parser = TitleParser()
+    for e in enc:
+        try:
+            decoded_chunk = chunk.decode(e, 'ignore')
+            parser.feed(decoded_chunk)
+            if parser.done:
+                title = parser.title
+            parser.close()
+            if len(title) > 0:
+                esc = parser.unescape(title)
+                return 'Title: '+esc
+        except Exception as ex:
+            pass
 
     # no title, try to output some other useful data
     info = []
