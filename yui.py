@@ -153,6 +153,24 @@ class Yui(IRCClient):
         return self.nick
 
     ################################################################################
+    # util functions
+    ################################################################################
+
+    def unhighlight_word(self, word):
+        """Insert a 0-width space after the first character to avoid highlighting"""
+        return word[:1] + '\u200B' + word[1:]
+
+    def unhighlight_multiple(self, string, words):
+        """Unhighlight all occurrences of a list of words in a string"""
+        for w in words:
+            string = string.replace(w, self.unhighlight_word(w))
+        return string
+
+    def unhighlight_for_channel(self, string, channel):
+        """Unhighlight all nicks in a channel in a string"""
+        return self.unhighlight_multiple(string, self.nicks_in_channel(channel))
+
+    ################################################################################
     # other bot functions
     ################################################################################
 
