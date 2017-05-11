@@ -121,7 +121,7 @@ def recv(channel, user, msg):
 
 
 @yui.command('markov', 'mark')
-def markov(argv, user):
+def markov(argv, user, channel):
     """Generate a random sentence for a given nick. Usage: markov [nick]"""
     name = user.nick
     if len(argv) > 1:
@@ -129,4 +129,4 @@ def markov(argv, user):
     sentence = m.generate_sentence(name)
     if sentence == '':
         return "Couldn't generate a sentence :("
-    return '<%s> %s' % (name, sentence)
+    return yui.unhighlight_for_channel('<%s> %s' % (name, sentence), channel)
