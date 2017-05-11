@@ -59,7 +59,7 @@ def update():
             if e.id not in seen:
                 yui.db.execute('INSERT OR IGNORE INTO rss_seen(feed_id, entry_id) VALUES(?, ?)', (feed, e.id))
                 for s in subs:
-                    yui.send_msg(s[0], '[%s]%s %s' % (s[1], e.title, e.link))
+                    yui.send_msg(s[0], '[%s] %s %s' % (s[1], e.title, e.link))
             yui.db.commit()
             entries.remove(e)
         MSG_TICKS = 0
