@@ -1,4 +1,5 @@
 @yui.event('msgRecv')
+@yui.event('noticeRecv')
 def query(channel, user, msg):
     if channel != user.nick:
         return
