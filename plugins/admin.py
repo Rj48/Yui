@@ -182,6 +182,40 @@ def unplug(argv):
 
 
 @yui.admin
+@yui.command('kick')
+def kick(argv):
+    """Kick someone from a channel. Usage: kick <channel> <nick> [reason]"""
+    if len(argv) < 3:
+        return
+
+    reason = None
+    if len(argv) > 3:
+        reason = ' '.join(argv[3:])
+
+    yui.kick(argv[1], argv[2], reason)
+
+
+@yui.admin
+@yui.command('chanserv', 'cs')
+def chanserv(argv):
+    """Send a message to chanserv. Usage: chanserv <msg>"""
+    if len(argv) < 2:
+        return
+
+    yui.send_msg('chanserv', ' '.join(argv[1:]))
+
+
+@yui.admin
+@yui.command('say')
+def say(argv):
+    """Send a message to a channel or nick. Usage: chanserv <channel/nick> <msg>"""
+    if len(argv) < 3:
+        return
+
+    yui.send_msg(argv[1], ' '.join(argv[2:]))
+
+
+@yui.admin
 @yui.command('loadconfig')
 def loadconfig():
     """"(Re-)Loads the config file"""
