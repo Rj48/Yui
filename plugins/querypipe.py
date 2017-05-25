@@ -4,4 +4,5 @@ def query(channel, user, msg):
         return
     m = '<' + user.nick + '> ' + msg
     for authed in yui.authed_users:
-        yui.send_msg(authed.nick, m)
+        if user.nick != authed.nick:
+            yui.send_msg(authed.nick, m)
