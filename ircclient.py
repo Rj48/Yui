@@ -115,6 +115,13 @@ class IRCClient(object):
         self.send_raw('QUIT :%s' % reason)
         self.quitting = True
 
+    def kick(self, channel, nick, reason = None):
+        """Kick someone from a channel"""
+        if reason is None:
+            self.send_raw('KICK %s %s' % (channel, nick))
+        else:
+            self.send_raw('KICK %s %s %s' % (channel, nick, reason))
+
     def parse_server_cmd(self, cmd):
         """Parse a message received from the server and split it into manageable parts.
         *inspired by* twisted's irc implementation"""
@@ -178,6 +185,9 @@ class IRCClient(object):
 
     def cmd_PRIVMSG(self, prefix, args):
         self.on_privmsg(prefix, args[0], args[1])
+
+    def cmd_NOTICE(self, prefix, args):
+        self.on_notice(prefix, args[0], args[1])
 
     def cmd_QUIT(self, prefix, args):
         for chan, nicks in self.channel_nicks.items():
@@ -252,6 +262,9 @@ class IRCClient(object):
         pass
 
     def on_privmsg(self, prefix, target, msg):
+        pass
+
+    def on_notice(self, prefix, target, msg):
         pass
 
     def on_rawmsg(self, msg):

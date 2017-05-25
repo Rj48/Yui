@@ -391,6 +391,19 @@ class Yui(IRCClient):
                         return
                     call_hook(h, target, user=user, channel=target, msg=msg, groups=match.groupdict())
 
+    def on_notice(self, user, target, msg):
+        if target == self.get_nick():  # if we're in query
+            target = user.nick  # send stuff back to the person
+
+        if self.is_ignored(user):
+            return
+
+        # fire generic event
+        self.fire_event('noticeRecv',
+                        user=user,
+                        msg=msg,
+                        channel=target)
+
     def on_join(self, user, channel):
         self.fire_event('join', user=user, channel=channel)
 
