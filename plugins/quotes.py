@@ -59,7 +59,7 @@ def quote(channel, argv):
     rnd = random.randint(0, cnt - 1)
     row = rows[rnd]
 
-    return 'Quote for [%s] (%d/%d): %s' % (tag, rnd + 1, cnt, row[0])
+    return 'Quote for [%s] (%d/%d): %s' % (tag, rnd + 1, cnt, yui.unhighlight_for_channel(row[0], channel))
 
 
 @yui.command('qtags', 'qt')
