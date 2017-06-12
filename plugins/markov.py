@@ -66,9 +66,9 @@ class SqlMark:
         return None
 
     def generate_sentence(self, tag, start=None, max_words=30):
+        if start is None:
+            start = ['']
         result = start
-        if result is None:
-            result = ['']
 
         while True:
             next_word = self.get_next_word(tag, result[-self.state_size:])
@@ -79,7 +79,7 @@ class SqlMark:
             if len(result) >= max_words:
                 break
 
-        if len(result) > start:
+        if len(result) > len(start):
             return ' '.join(result).strip()
         else:
             return ''
