@@ -72,10 +72,17 @@ class SqlMark:
 
         while True:
             next_word = self.get_next_word(tag, result[-self.state_size:])
-            if next_word is None or len(result) > max_words:
-                return ' '.join(result)
+            if next_word is None:
+                break
             next_word = next_word.strip()
             result.append(next_word)
+            if len(result) >= max_words:
+                break
+
+        if len(result) > start:
+            return ' '.join(result).strip()
+        else:
+            return ''
 
 
 m = SqlMark(yui.db, state_size=STATE_SIZE)
@@ -128,7 +135,7 @@ def load_file(argv):
 
 def contains_mention(split):
     for w in split:
-        if w.lower() == yui.get_nick().lower():
+        if w.lower().strip(" ;:,.") == yui.get_nick().lower():
             return w
     return ''
 
