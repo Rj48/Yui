@@ -69,6 +69,7 @@ class SqlMark:
         if start is None:
             start = ['']
         result = start
+        start_len = len(start)
 
         while True:
             next_word = self.get_next_word(tag, result[-self.state_size:])
@@ -79,7 +80,7 @@ class SqlMark:
             if len(result) >= max_words:
                 break
 
-        if len(result) > len(start):
+        if len(result) > start_len:
             return ' '.join(result).strip()
         else:
             return ''
