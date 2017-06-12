@@ -80,7 +80,7 @@ def get_url_title(url):
         req = urllib.request.Request(url, data=None, headers=headers)
         resp = urllib.request.urlopen(req, timeout=5)
     except urllib.error.HTTPError as e:
-        return 'Status ' + e.code
+        return 'Status ' + str(e.code)
     except urllib.error.URLError as e:
         return 'Error: ' + e.reason
 
