@@ -9,6 +9,11 @@ GENERATE_ROUNDS = 3
 CHATTINESS = 0.02
 ACTIVE_CHANNELS = []
 
+yui.db.execute("""\
+    CREATE TABLE IF NOT EXISTS markov_optout(
+        nick TEXT COLLATE NOCASE PRIMARY KEY);""")
+yui.db.commit()
+
 
 class SqlMark:
     def __init__(self, db, table_name='markov', state_size=3):
@@ -25,6 +30,10 @@ class SqlMark:
                 occurrences INTEGER,
                 UNIQUE(tag, prefix, next_word));""" % self.table_name)
         db.commit()
+
+    def delete_tag(self, tag):
+        self.db.execute("DELETE FROM %s WHERE tag = ?;" % self.table_name, (tag,))
+        self.db.commit()
 
     def add_sentence(self, tag, words):
         words = self.state_size * [''] + words + ['']
@@ -89,6 +98,11 @@ class SqlMark:
 m = SqlMark(yui.db, state_size=STATE_SIZE)
 
 
+def opted_out(nick):
+    res = yui.db.execute("SELECT * FROM markov_optout WHERE nick = ?;", (nick,))
+    return len(res.fetchall()) > 0
+
+
 def generate(tag, start):
     longest = None
     for i in range(GENERATE_ROUNDS):
@@ -125,7 +139,7 @@ def load_file(argv):
         nick = match.group(1)
         msg = match.group(2)
         spl = msg.split()
-        if len(spl) < 3:
+        if len(spl) < 3 or opted_out(nick):
             continue
         m.add_sentence(nick, spl)
         m.add_sentence(argv[2], spl)
@@ -147,6 +161,9 @@ def recv(channel, user, msg):
     # train the markov chains
     if channel == user.nick:  # ignore query
         return
+    if opted_out(user.nick):  #ignore opted-out people
+        return
+
     split = msg.split()
     m.add_sentence(user.nick, split)
     m.add_sentence(channel, split)
@@ -178,6 +195,11 @@ def markov(argv, user, channel):
     if len(argv) > 2:
         sentence_start = argv[2:2+STATE_SIZE]
 
+    if opted_out(name):
+        if name == user.nick:
+            return 'You have opted out of this feature.'
+        return yui.unhighlight_word(name) + ' has opted out of this feature.'
+
     sentence = generate(name, sentence_start)
     if sentence == '':
         return "Couldn't generate a sentence :("
@@ -196,3 +218,17 @@ def chatbot(channel, argv):
         return "I'll shut up"
     ACTIVE_CHANNELS.append(channel)
     return 'Chatting now'
+
+@yui.command('markov_optout')
+def optout(user, argv):
+    m.delete_tag(user.nick)
+    yui.db.execute("INSERT OR IGNORE INTO markov_optout (nick) VALUES(?);", (user.nick,))
+    yui.db.commit()
+    return 'Purged your Markov model. A new one will not be built from your messages.'
+
+@yui.command('markov_optin')
+def optout(user, argv):
+    m.delete_tag(user.nick)
+    yui.db.execute("DELETE FROM markov_optout WHERE nick = ?;", (user.nick,))
+    yui.db.commit()
+    return 'Your messages will be considered for Markov models.'
