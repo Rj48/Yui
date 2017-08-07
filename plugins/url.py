@@ -5,6 +5,9 @@ import re
 import urllib.request
 import urllib.error
 
+import socks
+from sockshandler import SocksiPyHandler
+
 DEFAULT_AGENT = 'Yui'
 
 
@@ -78,7 +81,16 @@ def get_url_title(url):
     }
     try:
         req = urllib.request.Request(url, data=None, headers=headers)
-        resp = urllib.request.urlopen(req, timeout=5)
+
+        proxy_host = yui.config_val('socksProxyHost')
+        proxy_port = yui.config_val('socksProxyPort')
+        host = urllib.request.urlparse(url).netloc.split(":")[0]
+
+        if proxy_host and proxy_port and re.match(yui.config_val("socksProxyRegex"), host):
+            opener = urllib.request.build_opener(SocksiPyHandler(socks.SOCKS5, proxy_host, proxy_port))
+            resp = opener.open(req, timeout=5)
+        else:
+            resp = urllib.request.urlopen(req, timeout=5)
     except urllib.error.HTTPError as e:
         return 'Status ' + str(e.code)
     except urllib.error.URLError as e:
