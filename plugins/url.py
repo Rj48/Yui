@@ -77,24 +77,24 @@ def get_url_title(url):
     enc = ['utf8', 'iso-8869-1', 'shift-jis']
     title = ''
     headers = {
-        'User-Agent': yui.config_val('httpUserAgent', default=DEFAULT_AGENT)
+        'User-Agent': yui.config_val('url','httpUserAgent', default=DEFAULT_AGENT)
     }
     try:
         req = urllib.request.Request(url, data=None, headers=headers)
 
-        proxy_host = yui.config_val('socksProxyHost')
-        proxy_port = yui.config_val('socksProxyPort')
-        host = urllib.request.urlparse(url).netloc.split(":")[0]
+        proxy_host = yui.config_val('url','socksProxyHost')
+        proxy_port = yui.config_val('url','socksProxyPort')
+        host = urllib.request.urlparse(url).netloc.split(':')[0]
 
-        if proxy_host and proxy_port and re.match(yui.config_val("socksProxyRegex"), host):
+        if proxy_host and proxy_port and re.match(yui.config_val('url','socksProxyRegex'), host):
             opener = urllib.request.build_opener(SocksiPyHandler(socks.SOCKS5, proxy_host, proxy_port))
             resp = opener.open(req, timeout=5)
         else:
             resp = urllib.request.urlopen(req, timeout=5)
     except urllib.error.HTTPError as e:
-        return 'Status ' + str(e.code)
+        return 'Status: ' + str(e.code)
     except urllib.error.URLError as e:
-        return 'Error: ' + e.reason
+        return 'Error: ' + str(e.reason)
 
     # try the charset set in the html header, if there is one
     if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:

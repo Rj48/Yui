@@ -40,8 +40,10 @@
         "messages": 5,
         "ignoreMinutes": 5
     },
-    "httpUserAgent": "Mozilla/5.0",
-    "socksProxyHost": "localhost",
-    "socksProxyPort": 9050,
-    "socksProxyRegex": ".*\\.onion$"
+    "url":{
+        "httpUserAgent": "Mozilla/5.0",
+        "socksProxyHost": "localhost",
+        "socksProxyPort": 9050,
+        "socksProxyRegex": ".*\\.onion$"
+    }
 }
