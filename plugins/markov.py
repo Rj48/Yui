@@ -121,31 +121,29 @@ def load_file(argv):
     if len(argv) < 3:
         return
 
-    try:
-        dict_file_name = argv[1]
-        with open(dict_file_name, errors='replace') as f:
-            text = f.read()
-    except:
-        return "Couldn't read file"
-
     msg_regex = re.compile(r'^\[..:..:..\] <(.*?)> (.*)$')
 
-    # go through all lines and extract nick + messages
-    num_lines = 0
-    for line in text.splitlines():
-        match = msg_regex.match(line)
-        if not match:
-            continue
-        nick = match.group(1)
-        msg = match.group(2)
-        spl = msg.split()
-        if len(spl) < 3 or opted_out(nick):
-            continue
-        m.add_sentence(nick, spl)
-        m.add_sentence(argv[2], spl)
-        num_lines += 1
-    m.commit()
-    return 'Loaded %d lines' % num_lines
+    try:
+        dict_file_name = argv[1]
+        with open(dict_file_name, encoding='utf-8', errors='replace') as f:
+            # go through all lines and extract nick + messages
+            num_lines = 0
+            for line in f:
+                match = msg_regex.match(line)
+                if not match:
+                    continue
+                nick = match.group(1)
+                msg = match.group(2)
+                spl = msg.split()
+                if len(spl) < 3 or opted_out(nick):
+                    continue
+                m.add_sentence(nick, spl)
+                m.add_sentence(argv[2], spl)
+                num_lines += 1
+            m.commit()
+            return 'Loaded %d lines' % num_lines
+    except:
+        return "Couldn't read file"
 
 
 def contains_mention(split):
