@@ -16,13 +16,15 @@ def replace(msg, channel, user):
         return
 
     last_msg = LAST[key]
+    new_msg = last_msg
     search = match.group(1)
     repl = match.group(2)
     if repl.endswith('/g'):
-        last_msg = last_msg.replace(search, repl[:-2])
+        new_msg = last_msg.replace(search, repl[:-2])
     else:
         if repl.endswith('/'):
             repl = repl[:-1]
-        last_msg = last_msg.replace(search, repl, 1)
+        new_msg = last_msg.replace(search, repl, 1)
 
-    yui.send_msg(channel, yui.unhighlight_for_channel('<%s> %s' % (user.nick, last_msg), channel))
+    if new_msg != last_msg:
+        yui.send_msg(channel, yui.unhighlight_for_channel('<%s> %s' % (user.nick, new_msg), channel))
