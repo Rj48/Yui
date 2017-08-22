@@ -1,10 +1,9 @@
 # coding=utf-8
 
-import random
-
 yui.db.execute("""\
 CREATE TABLE IF NOT EXISTS quotes(
-    tag TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel TEXT,
     quote TEXT,
     added_by TEXT,
     date_added DATETIME DEFAULT current_timestamp);""")
@@ -12,62 +11,75 @@ yui.db.commit()
 
 
 @yui.command('qadd', 'qa')
-def quoteAdd(user, channel, argv, msg):
-    """Adds a quote. Usage: qadd [-tag] <message>"""
-    tag = channel
-    if len(argv) > 1 and argv[1].startswith('-'):
-        tag = argv[1][1:]
-        argv = argv[1:]
-        if not tag:
-            return
-        msg = msg.split(' ', 1)[1]
-
+def quote_add(user, channel, argv, msg):
+    """Adds a quote. Usage: qadd <message>"""
     if len(argv) > 1:
-        yui.db.execute("""\
-        INSERT INTO quotes (tag, quote, added_by)
-        VALUES (?, ?, ?)""", (tag, msg.split(' ', 1)[1], user.nick))
+        if channel == user.nick:
+            channel = ''
+        cursor = yui.db.execute("""\
+        INSERT INTO quotes (channel, quote, added_by)
+        VALUES (?, ?, ?)""", (channel, msg.split(' ', 1)[1], user.nick))
+        id = cursor.lastrowid
         yui.db.commit()
-        return 'Added quote to [%s]!' % tag
+        return 'Quote #%d added!' % id
 
 
 @yui.command('quote', 'q')
 def quote(channel, argv):
-    """Displays a random quote. Usage: quote [-tag] [search_string]"""
-    tag = channel
+    """Displays a random quote. Usage: quote [search_string]"""
     search = None
-    if len(argv) > 1 and argv[1].startswith('-'):
-        tag = argv[1][1:]
-        argv = argv[1:]
-        if not tag:
-            return
-
+    id = None
     if len(argv) > 1:
         search = ' '.join(argv[1:])
+        if search.startswith('#'):
+            try:
+                id = int(search[1:])
+            except ValueError:
+                pass
 
     cursor = None
-    if search:
+    if id:
         cursor = yui.db.execute("""\
-        SELECT quote FROM quotes WHERE tag = ? AND quote LIKE ?""", (tag, '%' + search + '%'))
+        SELECT id, quote FROM quotes WHERE id = ?;""", (id,))
+    elif search:
+        cursor = yui.db.execute("""\
+        SELECT id, quote FROM quotes WHERE quote LIKE ? ORDER BY RANDOM() LIMIT 1;""", ('%' + search + '%',))
     else:
         cursor = yui.db.execute("""\
-        SELECT quote FROM quotes WHERE tag = ?""", (tag,))
+        SELECT id, quote FROM quotes ORDER BY RANDOM() LIMIT 1;""")
 
-    rows = cursor.fetchall()
-    cnt = len(rows)
-    if cnt < 1:
-        return 'I got nothing'
-    rnd = random.randint(0, cnt - 1)
-    row = rows[rnd]
+    row = cursor.fetchone()
+    if row is None:
+        return "Quote #%d doesn't exist." if id else 'No results.'
 
-    return 'Quote for [%s] (%d/%d): %s' % (tag, rnd + 1, cnt, yui.unhighlight_for_channel(row[0], channel))
+    return 'Quote #%d: %s' % (row[0], yui.unhighlight_for_channel(row[1], channel))
 
 
-@yui.command('qtags', 'qt')
-def quoteTags():
-    """Lists all quote tags."""
-    cursor = yui.db.execute("""\
-    SELECT tag, count(*) FROM quotes GROUP BY tag""")
-    tags = cursor.fetchall()
-    tags = ['%s (%d)' % (t[0], t[1]) for t in tags]
+@yui.command('qinfo')
+def quote_info(argv):
+    argc = len(argv)
+    if argc < 2:
+        cursor = yui.db.execute('SELECT COUNT(*) FROM quotes;')
+        row = cursor.fetchone()
+        return 'I currently have %d quotes stored.' % row[0]
 
-    return 'Tags: ' + ', '.join(tags)
+    try:
+        id = int(argv[1].lstrip('#'))
+    except ValueError:
+        return
+    cursor = yui.db.execute('SELECT added_by, channel, date_added FROM quotes WHERE id = ?;', (id,))
+    row = cursor.fetchone()
+    if row is not None:
+        chan = row[1] if row[1] != '' else 'a PM'
+        return 'Quote #%d was added by %s in %s on %s' % (id, row[0], chan, row[2])
+    return "Quote #%d doesn't exist." % id
+
+
+@yui.admin
+@yui.command('qdel')
+def quote_delete(argv):
+    """Delete a quote. Usage: qdelete [id]"""
+    if len(argv) > 1:
+        id = argv[1].lstrip('#')
+        cursor = yui.db.execute('DELETE FROM quotes WHERE id = ?', (id))
+        return 'Quote deleted!' if cursor.rowcount > 0 else "Quote #%d doesn't exist." % id
