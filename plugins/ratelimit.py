@@ -14,7 +14,10 @@ buffers = {}
 
 
 @yui.event('preCmd')
-def ratelimit(user, msg):
+def ratelimit(user, is_cmd):
+    if not is_cmd:
+        return
+
     now = time.time()
     if user not in buffers.keys():
         buffers[user] = deque([], maxlen=max_msg)

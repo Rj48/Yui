@@ -406,9 +406,12 @@ class Yui(IRCClient):
         if self.is_ignored(user):
             return
 
+        is_cmd = msg.startswith(tuple(self.config_val('commandPrefixes', default=['!'])))
+
         kwargs = {'user': user,
                   'msg': msg,
-                  'channel': target}
+                  'channel': target,
+                  'is_cmd': is_cmd}
 
         # preRecv hooks can prevent any further command parsing/events by returning false
         pre = self.fire_event('preRecv', None, **kwargs)
@@ -419,7 +422,7 @@ class Yui(IRCClient):
         self.fire_event('msgRecv', send_msg, **kwargs)
 
         # parse command
-        if msg.startswith(tuple(self.config_val('commandPrefixes', default=['!']))):
+        if is_cmd:
             self.run_command(msg[1:], send_msg, **kwargs)
 
         # run regex hooks
