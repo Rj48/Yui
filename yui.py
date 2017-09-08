@@ -2,7 +2,7 @@
 # coding=utf-8
 
 import builtins  # setting yui as a builtin
-import csv  # parsing commands
+import shlex  # parsing commands
 import imp
 import inspect  # inspecting hook arguments
 import json  # reading/writing config
@@ -143,10 +143,13 @@ class Yui(IRCClient):
     # irc functions
     ################################################################################
 
-    def send_msg(self, channel, msg):
-        """Send a PRIVMSG to a nick or channel"""
-        self.send_privmsg(channel, self.trim_to_max_len(msg, '...'))
-        self.fire_event('msgSend', channel=channel, msg=msg)
+    def send_msg(self, channel, msg, notice=False):
+        """Send a PRIVMSG or NOTICE to a nick or channel"""
+        if notice:
+            self.send_notice(channel, self.trim_to_max_len(msg, '...'))
+        else:
+            self.send_privmsg(channel, self.trim_to_max_len(msg, '...'))
+        self.fire_event('msgSend', None, channel=channel, msg=msg)
 
     def get_nick(self):
         """Return the bot's current nickname"""
@@ -171,50 +174,8 @@ class Yui(IRCClient):
         return self.unhighlight_multiple(string, self.nicks_in_channel(channel))
 
     ################################################################################
-    # other bot functions
+    # admin/auth stuff
     ################################################################################
-
-    def fire_event(self, eventName, **kwargs):
-        """Run Hooks registered to an event"""
-        ret = []
-        try:
-            for f, h in self.hooks.items():
-                if eventName in h.event:
-                    ret.append(h(**kwargs))
-        except Exception as ex:
-            if eventName != 'log':
-                self.log('error', 'Exception occurred processing event "%s": %s' % (eventName, repr(ex)))
-                self.log('error', traceback.format_exc())
-        return ret
-
-    def ignore(self, seconds, nick, user='.*', host='.*'):
-        """Ignore messages from a privmsg prefix for a number of seconds"""
-        try:
-            reg = re.compile('%s!%s@%s' % (nick, user, host))
-            self.ignored_users[reg] = time.time() + seconds
-            return True
-        except:
-            return False
-
-    def unignore(self, prefix_regex):
-        for r, t in self.ignored_users.items():
-            if r.pattern == prefix_regex:
-                del self.ignored_users[r]
-                return True
-        return False
-
-    def get_ignore_list(self):
-        return [r.pattern for r, t in self.ignored_users.items()]
-
-    def is_ignored(self, user):
-        now = time.time()
-        for r, t in list(self.ignored_users.items()):
-            if t < now:
-                del self.ignored_users[r]
-            else:
-                if r.fullmatch(user.raw):
-                    return True
-        return False
 
     def auth_user(self, user, pw):
         if user in self.authed_users:
@@ -239,10 +200,50 @@ class Yui(IRCClient):
         """Return True if the user is admin and authed"""
         return True if user in self.authed_users else False
 
+    ################################################################################
+    # ignore list
+    ################################################################################
+
+    def ignore(self, seconds, nick, user='.*', host='.*'):
+        """Ignore messages from a privmsg prefix for a number of seconds"""
+        try:
+            reg = re.compile('%s!%s@%s' % (nick, user, host))
+            self.ignored_users[reg] = time.time() + seconds
+            return True
+        except:
+            return False
+
+    def unignore(self, prefix_regex):
+        """Stop ignoring someone"""
+        for r, t in self.ignored_users.items():
+            if r.pattern == prefix_regex:
+                del self.ignored_users[r]
+                return True
+        return False
+
+    def get_ignore_list(self):
+        """Get a list of all currently ignored people"""
+        return [r.pattern for r, t in self.ignored_users.items()]
+
+    def is_ignored(self, user):
+        """Check if a user is currently ignored"""
+        now = time.time()
+        for r, t in list(self.ignored_users.items()):
+            if t < now:
+                del self.ignored_users[r]
+            else:
+                if r.fullmatch(user.raw):
+                    return True
+        return False
+
+    ################################################################################
+    # other bot functions
+    ################################################################################
+
     def log(self, level, msg):
         """Print to stdout and fire the 'log' event"""
         print('[%s] %s' % (level, msg))
-        self.fire_event('log', level=level, msg=msg)
+        self.fire_event('log', None, level=level, msg=msg)
 
     def load_config(self):
         """(Re-)load the config JSON"""
@@ -331,12 +332,61 @@ class Yui(IRCClient):
         """Return a list containing all registered hooks"""
         return self.hooks.values()
 
-    def hook_by_cmd(self, cmd):
-        """Return a hook by registered command"""
+    def find_hooks(self, condition):
+        """Find hooks by an arbitrary filter function. The function gets passed the hook object."""
+        hooks = []
         for f, h in self.hooks.items():
-            if cmd in h.cmd:
-                return h
-        return None
+            if condition(h):
+                hooks.append(h)
+        return hooks
+
+    def find_hook(self, condition):
+        """Finds a hook by arbitrary  filter function."""
+        hooks = self.find_hooks(condition)
+        return None if len(hooks) < 1 else hooks[0]
+
+    ################################################################################
+    # hook calling stuff
+    ################################################################################
+
+    def call_hook(self, hook, return_func, **kwargs):
+        """Call a hook either directly or in a thread. return_func called for the return value of the hook."""
+
+        def thread(hook, return_func, **kwargs):
+            ret = hook(**kwargs)
+            if return_func:
+                try:
+                    return_func(ret)
+                except Exception as ex:
+                    self.log('error', 'Exception occurred processing hook "%s": %s' % (repr(hook.func), repr(ex)))
+                    self.log('error', traceback.format_exc())
+                    return None
+            return ret
+
+        if hook.threaded:
+            t = threading.Thread(target=thread, args=(hook, return_func), kwargs=kwargs)
+            t.start()
+        else:
+            thread(hook, return_func, **kwargs)
+
+    def fire_event(self, event_name, return_func, **kwargs):
+        """Run Hooks registered to an event"""
+        ret = []
+        for hook in self.find_hooks(lambda h: event_name in h.event):
+            ret.append(self.call_hook(hook, return_func, **kwargs))
+        return ret
+
+    def run_command(self, command_string, return_func, **kwargs):
+        """Run all hooks corresponding to a bot command"""
+        if not command_string or len(command_string) < 1:
+            return
+        argv = shlex.split(command_string)
+        hook = self.find_hook(lambda h: argv[0] in h.cmd)
+        if not hook:
+            return
+        kwargs = kwargs or {}
+        kwargs['argv'] = argv
+        self.call_hook(hook, return_func, **kwargs)
 
     ################################################################################
     # IRCClient callbacks
@@ -345,90 +395,65 @@ class Yui(IRCClient):
     def on_privmsg(self, user, target, msg):
         if target == self.get_nick():  # if we're in query
             target = user.nick  # send stuff back to the person
-
-        if self.is_ignored(user):
-            return
-
-        # fire generic event
-        self.fire_event('msgRecv',
-                        user=user,
-                        msg=msg,
-                        channel=target)
-
-        def call_hook(hook, target, **kwargs):
-            """Call a hook either directly or in a thread"""
-
-            def thread(hook, target, **kwargs):
-                ret = hook(**kwargs)
-                if ret:
-                    self.send_msg(target, ret)
-
-            if hook.threaded:
-                t = threading.Thread(target=thread, args=(hook, target), kwargs=kwargs)
-                t.start()
-            else:
-                thread(hook, target, **kwargs)
-
-        # parse command
-        if msg.startswith(tuple(self.config_val('commandPrefixes', default=['!']))):
-            if len(msg) > 1:
-                argv = list(csv.reader([msg[1:]], delimiter=' ', quotechar='"', skipinitialspace=True))[0]
-                # look for a hook registered to this command
-                for f, h in self.hooks.items():
-                    if h.admin and not self.is_authed(user):
-                        continue
-                    if argv[0] in h.cmd:
-                        if False in self.fire_event('preCmd', user=user, channel=target, msg=msg):
-                            return
-                        call_hook(h, target, user=user, channel=target, msg=msg, argv=argv)
-                        return
-        # match regex
-        for f, h in self.hooks.items():
-            for reg in h.regex:
-                match = reg.match(msg)
-                if match:
-                    if False in self.fire_event('preCmd', user=user, channel=target, msg=msg):
-                        return
-                    call_hook(h, target, user=user, channel=target, msg=msg, groups=match.groupdict())
+        self.on_msg(user, target, msg, lambda ret: self.send_msg(target, ret))
 
     def on_notice(self, user, target, msg):
         if target == self.get_nick():  # if we're in query
             target = user.nick  # send stuff back to the person
+        self.on_msg(user, target, msg, lambda ret: self.send_msg(target, ret, True))
 
+    def on_msg(self, user, target, msg, send_msg):
         if self.is_ignored(user):
             return
 
+        kwargs = {'user': user,
+                  'msg': msg,
+                  'channel': target}
+
+        # preRecv hooks can prevent any further command parsing/events by returning false
+        pre = self.fire_event('preRecv', None, **kwargs)
+        if False in pre:
+            return
+
         # fire generic event
-        self.fire_event('noticeRecv',
-                        user=user,
-                        msg=msg,
-                        channel=target)
+        self.fire_event('msgRecv', send_msg, **kwargs)
+
+        # parse command
+        if msg.startswith(tuple(self.config_val('commandPrefixes', default=['!']))):
+            self.run_command(msg[1:], send_msg, **kwargs)
+
+        # run regex hooks
+        for hook in self.find_hooks(lambda h: len(h.regex) > 0):
+            for reg in hook.regex:
+                match = reg.match(msg)
+                if match:
+                    self.call_hook(hook, send_msg, **kwargs, groups=match.groupdict())
 
     def on_join(self, user, channel):
-        self.fire_event('join', user=user, channel=channel)
+        self.fire_event('join', lambda ret: self.send_msg(channel, ret), user=user, channel=channel)
 
     def on_part(self, user, channel):
-        self.fire_event('part', user=user, channel=channel)
+        self.fire_event('part', None, user=user, channel=channel)
 
     def on_quit(self, user):
-        self.fire_event('quit', user=user)
+        self.fire_event('quit', None, user=user)
 
     def on_log(self, error):
         self.log('error', error)
 
     def on_disconnect(self):
+        self.fire_event('disconnect', None)
         self.log('info', 'disconnected')
-        self.fire_event('disconnect')
 
     # servers tend to not take joins etc. before they sent a welcome msg
     def on_serverready(self):
         self.log('info', 'connected!')
-        self.fire_event('connect')
+        self.fire_event('connect', None)
         self.server_ready = True
 
     def on_tick(self):
         if self.server_ready:
-            self.fire_event('tick')
+            self.fire_event('tick', None)
 
 
 def main():
