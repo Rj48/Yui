@@ -69,6 +69,8 @@ class IRCClient(object):
     def trim_to_max_len(self, string, trail=''):
         """Trim a string to the max. message (byte) length, replace
         last few characters with a given trail (e.g. '...')"""
+        if not string:
+            return None
         enc_str = string.encode(self.encoding)
         if len(enc_str) < self.max_msg_len:
             return string
