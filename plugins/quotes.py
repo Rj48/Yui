@@ -81,5 +81,5 @@ def quote_delete(argv):
     """Delete a quote. Usage: qdelete [id]"""
     if len(argv) > 1:
         id = argv[1].lstrip('#')
-        cursor = yui.db.execute('DELETE FROM quotes WHERE id = ?', (id))
+        cursor = yui.db.execute('DELETE FROM quotes WHERE id = ?;', (id,))
         return 'Quote deleted!' if cursor.rowcount > 0 else "Quote #%d doesn't exist." % id
