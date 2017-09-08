@@ -94,6 +94,12 @@ class IRCClient(object):
             return
         self.send_raw('PRIVMSG %s :%s' % (channel, msg))
 
+    def send_notice(self, channel, msg):
+        """Send a notice to a channel/user"""
+        if not channel or not msg:
+            return
+        self.send_raw('NOTICE %s :%s' % (channel, msg))
+
     def set_nick(self, nick):
         """Set the bot's nick"""
         self.send_raw('NICK %s' % nick)
