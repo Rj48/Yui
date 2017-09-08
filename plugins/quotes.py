@@ -50,7 +50,7 @@ def quote(channel, argv):
 
     row = cursor.fetchone()
     if row is None:
-        return "Quote #%d doesn't exist." if id else 'No results.'
+        return "Quote #%d doesn't exist." % id if id else 'No results.'
 
     return 'Quote #%d: %s' % (row[0], yui.unhighlight_for_channel(row[1], channel))
 
