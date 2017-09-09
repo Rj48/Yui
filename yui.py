@@ -377,7 +377,7 @@ class Yui(IRCClient):
         return ret
 
     def run_command(self, command_string, return_func, **kwargs):
-        """Run all hooks corresponding to a bot command"""
+        """Run hook corresponding to a registered bot command"""
         if not command_string or len(command_string) < 1:
             return
         argv = shlex.split(command_string)

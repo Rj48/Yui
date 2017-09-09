@@ -55,7 +55,7 @@ def quote(channel, argv):
     return 'Quote #%d: %s' % (row[0], yui.unhighlight_for_channel(row[1], channel))
 
 
-@yui.command('qinfo')
+@yui.command('qinfo', 'qi')
 def quote_info(argv):
     argc = len(argv)
     if argc < 2:
@@ -76,9 +76,9 @@ def quote_info(argv):
 
 
 @yui.admin
-@yui.command('qdel')
+@yui.command('qdel', 'qd')
 def quote_delete(argv):
-    """Delete a quote. Usage: qdelete [id]"""
+    """Delete a quote. Usage: qdel [id]"""
     if len(argv) > 1:
         id = argv[1].lstrip('#')
         cursor = yui.db.execute('DELETE FROM quotes WHERE id = ?;', (id,))
