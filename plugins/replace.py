@@ -15,6 +15,9 @@ def replace(msg, channel, user):
             LAST[key] = msg
         return
 
+    if key not in LAST.keys():
+        return
+
     last_msg = LAST[key]
     new_msg = last_msg
     search = match.group(1)
