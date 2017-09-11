@@ -11,8 +11,7 @@ def replace(msg, channel, user):
     match = REGEX.match(msg)
     key = channel + user.nick
     if not match:
-        if key not in LAST.keys():
-            LAST[key] = msg
+        LAST[key] = msg
         return
 
     if key not in LAST.keys():
