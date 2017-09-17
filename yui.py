@@ -2,7 +2,7 @@
 # coding=utf-8
 
 import builtins  # setting yui as a builtin
-import shlex  # parsing commands
+import csv  # parsing commands
 import imp
 import inspect  # inspecting hook arguments
 import json  # reading/writing config
@@ -380,7 +380,7 @@ class Yui(IRCClient):
         """Run hook corresponding to a registered bot command"""
         if not command_string or len(command_string) < 1:
             return
-        argv = shlex.split(command_string)
+        argv = list(csv.reader([command_string.rstrip()], delimiter=' ', quotechar='"', skipinitialspace=True))[0]
         hook = self.find_hook(lambda h: argv[0] in h.cmd)
         if not hook:
             return
