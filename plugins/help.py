@@ -8,7 +8,7 @@ def help(argv):
     """Returns doc for commands. Usage: help <command>"""
     if len(argv) < 2:
         return 'Usage: help <command>'
-    hook = yui.find_hook(lambda h: h.cmd == argv[1])
+    hook = yui.find_hook(lambda h: argv[1] in h.cmd)
     if hook:
         doc = inspect.getdoc(hook.func)
         if doc:
