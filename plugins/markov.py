@@ -217,16 +217,19 @@ def chatbot(channel, argv):
     ACTIVE_CHANNELS.append(channel)
     return 'Chatting now'
 
+
 @yui.command('markov_optout')
 def optout(user, argv):
+    """Opt out of all markov functions. Your messages will no longer be incorporated into any models. Your personal markov model will be irreversibly deleted."""
     m.delete_tag(user.nick)
     yui.db.execute("INSERT OR IGNORE INTO markov_optout (nick) VALUES(?);", (user.nick,))
     yui.db.commit()
     return 'Purged your Markov model. A new one will not be built from your messages.'
 
+
 @yui.command('markov_optin')
-def optout(user, argv):
-    m.delete_tag(user.nick)
+def optin(user, argv):
+    """Opt back into all markov stuff. see markov_optout."""
     yui.db.execute("DELETE FROM markov_optout WHERE nick = ?;", (user.nick,))
     yui.db.commit()
     return 'Your messages will be considered for Markov models.'
