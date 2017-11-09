@@ -367,7 +367,7 @@ class Yui(IRCClient):
             t = threading.Thread(target=thread, args=(hook, return_func), kwargs=kwargs)
             t.start()
         else:
-            thread(hook, return_func, **kwargs)
+            return thread(hook, return_func, **kwargs)
 
     def fire_event(self, event_name, return_func, **kwargs):
         """Run Hooks registered to an event"""
@@ -384,9 +384,11 @@ class Yui(IRCClient):
         hook = self.find_hook(lambda h: argv[0] in h.cmd)
         if not hook:
             return
+        if hook.admin and not self.is_authed(kwargs['user']):
+            return
         kwargs = kwargs or {}
         kwargs['argv'] = argv
-        self.call_hook(hook, return_func, **kwargs)
+        return self.call_hook(hook, return_func, **kwargs)
 
     ################################################################################
     # IRCClient callbacks
