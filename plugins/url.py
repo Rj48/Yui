@@ -2,14 +2,17 @@
 
 import html.parser
 import re
-import urllib.request
 import urllib.error
+import urllib.request
+import urllib.parse
 
 import socks
 from sockshandler import SocksiPyHandler
 
-DEFAULT_AGENT = 'Yui'
-
+USER_AGENT = yui.config_val('url', 'httpUserAgent', default='Yui')
+PROXY_HOST = yui.config_val('url', 'socksProxyHost')
+PROXY_PORT = yui.config_val('url', 'socksProxyPort')
+PROXY_REGEX = yui.config_val('url', 'socksProxyRegex')
 
 class TitleParser(html.parser.HTMLParser):
     def __init__(self):
@@ -39,9 +42,8 @@ class TitleParser(html.parser.HTMLParser):
         if self.reading:
             self.title += '&%s;' % ref
 
-
-def url_encode_ascii(string):
-    return re.sub('[\x80-\xFF]', lambda c: '%%%02x' % ord(c.group(0)), string)
+    def error(self, message):
+        pass
 
 
 def humanify(num):
@@ -67,7 +69,7 @@ def get_encoded_url(url):
 
     # handle unicode URLs
     url = urllib.request.urlunparse(
-        p if i == 1 else url_encode_ascii(p)
+        p if i == 1 else urllib.parse.quote(p)
         for i, p in enumerate(parts)
     )
     return url
@@ -77,17 +79,15 @@ def get_url_title(url):
     enc = ['utf8', 'iso-8869-1', 'shift-jis']
     title = ''
     headers = {
-        'User-Agent': yui.config_val('url','httpUserAgent', default=DEFAULT_AGENT)
+        'User-Agent': USER_AGENT
     }
     try:
         req = urllib.request.Request(url, data=None, headers=headers)
 
-        proxy_host = yui.config_val('url','socksProxyHost')
-        proxy_port = yui.config_val('url','socksProxyPort')
         host = urllib.request.urlparse(url).netloc.split(':')[0]
 
-        if proxy_host and proxy_port and re.match(yui.config_val('url','socksProxyRegex'), host):
-            opener = urllib.request.build_opener(SocksiPyHandler(socks.SOCKS5, proxy_host, proxy_port))
+        if PROXY_HOST and PROXY_PORT and re.match(PROXY_REGEX, host):
+            opener = urllib.request.build_opener(SocksiPyHandler(socks.SOCKS5, PROXY_HOST, PROXY_PORT))
             resp = opener.open(req, timeout=5)
         else:
             resp = urllib.request.urlopen(req, timeout=5)
@@ -95,6 +95,8 @@ def get_url_title(url):
         return 'Status: ' + str(e.code)
     except urllib.error.URLError as e:
         return 'Error: ' + str(e.reason)
+    except Exception as e:
+        return
 
     # try the charset set in the html header, if there is one
     if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:
@@ -112,7 +114,7 @@ def get_url_title(url):
             parser.close()
             if len(title) > 0:
                 esc = parser.unescape(title)
-                return 'Title: '+esc.strip()
+                return 'Title: ' + esc.strip()
         except Exception as ex:
             pass
 
