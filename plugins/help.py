@@ -13,6 +13,7 @@ def help(argv):
         doc = inspect.getdoc(hook.func)
         if doc:
             return doc
+    return "Couldn't find command \"%s\"" % argv[1]
 
 
 @yui.command('alias', 'al')
