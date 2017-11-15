@@ -57,6 +57,7 @@ def quote(channel, argv):
 
 @yui.command('qinfo', 'qi')
 def quote_info(argv):
+    """Print info about stored quotes or a particular quote. Usage: qinfo [id]"""
     argc = len(argv)
     if argc < 2:
         cursor = yui.db.execute('SELECT COUNT(*) FROM quotes;')
