@@ -21,7 +21,7 @@ def alias(argv):
     """Returns all aliases for a command. Usage: alias <command>"""
     if len(argv) < 2:
         return
-    hook = yui.hook_by_cmd(argv[1])
+    hook = yui.find_hook(lambda h: argv[1] in h.cmd)
     if hook:
         return 'Aliases for %s: %s' % (argv[1], ', '.join(hook.cmd))
 
