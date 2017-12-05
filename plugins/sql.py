@@ -3,6 +3,7 @@
 @yui.admin
 @yui.command('sql')
 def sql(msg, user):
+    """Execute an SQLite query. Usage: sql <query>"""
     split = msg.split(' ', 1)
     if len(split) < 2:
         return
