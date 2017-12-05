@@ -5,7 +5,7 @@ import inspect
 
 @yui.command('help', 'h')
 def help(argv):
-    """Returns doc for commands. For a list of commands available, use the "commands" command. Usage: help <command>"""
+    """Returns help for commands. For a list of commands available, use the "commands" command. Usage: help <command>"""
     if len(argv) < 2:
         return help.__doc__
     hook = yui.find_hook(lambda h: argv[1] in h.cmd)
@@ -13,6 +13,8 @@ def help(argv):
         doc = inspect.getdoc(hook.func)
         if doc:
             return doc
+        else:
+            return 'No help available for "%s"' % argv[1]
     return "Couldn't find command \"%s\"" % argv[1]
 
 
