@@ -112,25 +112,27 @@ def get_url_title(url):
     except Exception as e:
         return
 
-    # try the charset set in the html header, if there is one
-    if 'content-type' in resp.headers and 'charset=' in resp.headers['content-type']:
-        enc = enc + [resp.headers['content-type'].split('charset=')[-1]]
+    # get the site's title, only in html content
+    if 'content-type' in resp.headers and 'html' in resp.headers['content-type']:
+        # try the charset set in the html header first, if there is one
+        if 'charset=' in resp.headers['content-type']:
+            enc = enc + [resp.headers['content-type'].split('charset=')[-1]]
 
-    # read up to 1mb
-    chunk = resp.read(1024 * 1024)
-    parser = TitleParser()
-    for e in enc:
-        try:
-            decoded_chunk = chunk.decode(e, 'ignore')
-            parser.feed(decoded_chunk)
-            if parser.done:
-                title = parser.title
-            parser.close()
-            if len(title) > 0:
-                esc = parser.unescape(title)
-                return 'Title: ' + esc.strip()
-        except Exception as ex:
-            pass
+        # read up to 1mb
+        chunk = resp.read(1024 * 1024)
+        parser = TitleParser()
+        for e in enc:
+            try:
+                decoded_chunk = chunk.decode(e, 'ignore')
+                parser.feed(decoded_chunk)
+                if parser.done:
+                    title = parser.title
+                parser.close()
+                if len(title) > 0:
+                    esc = parser.unescape(title)
+                    return 'Title: ' + esc.strip()
+            except Exception as ex:
+                pass
 
     # no title, try to output some other useful data
     info = []
@@ -138,6 +140,8 @@ def get_url_title(url):
         info.append('Type: ' + resp.headers['content-type'].split(';')[0])
     if 'content-length' in resp.headers:
         info.append('Size: ' + humanify(int(resp.headers['content-length'])))
+    if 'last-modified' in resp.headers:
+        info.append('Modified: ' + resp.headers['last-modified'])
 
     return ', '.join(info)
 
