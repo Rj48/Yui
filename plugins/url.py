@@ -6,6 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from time import time
+import dateutil.parser
 
 import socks
 from sockshandler import SocksiPyHandler
@@ -144,7 +145,13 @@ def get_url_title(url):
     if 'content-length' in resp.headers:
         info.append('Size: ' + humanify(int(resp.headers['content-length'])))
     if 'last-modified' in resp.headers:
-        info.append('Modified: ' + resp.headers['last-modified'])
+        d = resp.headers['last-modified']
+        try:
+            parsed_date = dateutil.parser.parse(d)
+            d = parsed_date.strftime('%F %T') + ' ' + parsed_date.tzname()
+        except ValueError:
+            pass
+        info.append('Modified: ' + d)
 
     return ', '.join(info)
 
