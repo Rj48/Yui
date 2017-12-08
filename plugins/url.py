@@ -5,6 +5,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from time import time
 
 import socks
 from sockshandler import SocksiPyHandler
@@ -13,6 +14,8 @@ USER_AGENT = yui.config_val('url', 'httpUserAgent', default='Yui')
 PROXY_HOST = yui.config_val('url', 'socksProxyHost')
 PROXY_PORT = yui.config_val('url', 'socksProxyPort')
 PROXY_REGEX = yui.config_val('url', 'socksProxyRegex')
+
+URLCACHE = {}  # url -> info cache
 
 
 class TitleParser(html.parser.HTMLParser):
@@ -157,9 +160,17 @@ def url(msg, channel):
         if not enc_url:
             continue
 
-        title = get_url_title(enc_url)
+        if enc_url in URLCACHE and URLCACHE[enc_url]['timestamp'] > (time() - 60 * 60):
+            title = URLCACHE[enc_url]['title']
+        else:
+            title = get_url_title(enc_url).strip()
+            URLCACHE[enc_url] = {
+                'timestamp': time(),
+                'title': title
+            }
+
         if title:
-            titles.append(title.strip())
+            titles.append(title)
 
         if len(titles) >= max_urls:
             break
