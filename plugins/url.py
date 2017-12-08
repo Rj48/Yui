@@ -3,8 +3,8 @@
 import html.parser
 import re
 import urllib.error
-import urllib.request
 import urllib.parse
+import urllib.request
 
 import socks
 from sockshandler import SocksiPyHandler
@@ -13,6 +13,7 @@ USER_AGENT = yui.config_val('url', 'httpUserAgent', default='Yui')
 PROXY_HOST = yui.config_val('url', 'socksProxyHost')
 PROXY_PORT = yui.config_val('url', 'socksProxyPort')
 PROXY_REGEX = yui.config_val('url', 'socksProxyRegex')
+
 
 class TitleParser(html.parser.HTMLParser):
     def __init__(self):
@@ -58,18 +59,31 @@ def humanify(num):
         num = div
 
 
+# quote a query string
+def quote_qs(qs):
+    parts = urllib.parse.parse_qs(qs, keep_blank_values=True)
+    return '&'.join([
+        urllib.parse.quote(p) + '=' + urllib.parse.quote(v[0]) if v
+        else urllib.parse.quote(p)
+        for p, v in parts.items()])
+
+
 # returns a properly encoded url (escaped unicode etc)
 # or None if it's not a valid url
 def get_encoded_url(url):
     # test if it's a valid URL and encode it properly, if it is
     parts = urllib.request.urlparse(url)
-    if not ((parts[0] == 'http' or parts[0] == 'https') and parts[1] and parts[1] != 'localhost' and not
-    parts[1].split('.')[-1].isdigit()):
+    if not ((parts[0] == 'http' or parts[0] == 'https')
+            and parts[1]
+            and parts[1] != 'localhost'
+            and not parts[1].split('.')[-1].isdigit()):
         return None
 
     # handle unicode URLs
     url = urllib.request.urlunparse(
-        p if i == 1 else urllib.parse.quote(p)
+        p if i == 1
+        else quote_qs(p) if i == 4
+        else urllib.parse.quote(p)
         for i, p in enumerate(parts)
     )
     return url
