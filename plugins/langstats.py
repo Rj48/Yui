@@ -46,11 +46,11 @@ def recv(channel, user, msg, is_cmd):
                             0,
                             CHANCES)
 
-    if LANGCOUNTS[key] < 2:
-        return '%s: %sでおk' % (user.nick, ACTIVE_CHANNELS[channel])
-
     if LANGCOUNTS[key] < 1:
         yui.kick(channel, user.nick, '(´・ω・｀)')
+
+    if LANGCOUNTS[key] < 2:
+        return '%s: %sでおk' % (user.nick, ACTIVE_CHANNELS[channel])
 
 
 @yui.admin
