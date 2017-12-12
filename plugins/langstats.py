@@ -47,7 +47,9 @@ def recv(channel, user, msg, is_cmd):
                             CHANCES)
 
     if LANGCOUNTS[key] < 1:
+        LANGCOUNTS.pop(key)
         yui.kick(channel, user.nick, '(´・ω・｀)')
+        return
 
     if LANGCOUNTS[key] < 2:
         return '%s: %sでおk' % (user.nick, ACTIVE_CHANNELS[channel])
@@ -56,14 +58,14 @@ def recv(channel, user, msg, is_cmd):
 @yui.admin
 @yui.command('langordie')
 def switch(channel, argv):
-    """Keep people talking in ONE language. Usage: langordie <2 char lang code>"""
-    if len(argv) < 2:
-        return
-    if channel in ACTIVE_CHANNELS:
-        ACTIVE_CHANNELS.pop(channel)
+    """Keep people talking in ONE language. Usage: langordie [lang_code [channel]]"""
+    c = channel if len(argv) < 2 else argv[2]
+    if c in ACTIVE_CHANNELS:
+        ACTIVE_CHANNELS.pop(c)
         return 'まぁ、やめよっか'
-    ACTIVE_CHANNELS[channel] = argv[1]
-    return '頑張ってね o/'
+    if len(argv) > 1:
+        ACTIVE_CHANNELS[c] = argv[1]
+        return '頑張ってね o/'
 
 
 @yui.command('langstats', 'ls')
@@ -74,4 +76,6 @@ def langstats(channel, user, argv):
         n = argv[1]
     res = yui.db.execute('SELECT lang, cnt FROM langstats WHERE channel = ? AND nick = ? ORDER BY cnt DESC;',
                          (channel, n))
-    return yui.unhighlight_word(n) + ': ' + ', '.join(['%d %s' % (r[1], r[0]) for r in res.fetchall()])
+    rows = res.fetchall()
+    if len(rows) > 0:
+        return yui.unhighlight_word(n) + ': ' + ', '.join(['%d %s' % (r[1], r[0]) for r in rows])
