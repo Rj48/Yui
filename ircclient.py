@@ -5,6 +5,7 @@ import re
 import socket
 import ssl
 import time
+import signal
 from collections import namedtuple
 
 Prefix = namedtuple('Prefix', ['nick', 'user', 'host', 'raw'])
@@ -40,6 +41,8 @@ class IRCClient(object):
         self.max_msg_len = 400
 
         self.bad_chars_regex = re.compile(r'[\r\n]+')
+
+        signal.signal(signal.SIGINT, lambda signum, frame: self.quit('ctrl-C'))
 
     def send_raw(self, msg):
         """Send a raw line to the server"""
