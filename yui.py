@@ -353,15 +353,15 @@ class Yui(IRCClient):
         """Call a hook either directly or in a thread. return_func called for the return value of the hook."""
 
         def thread(hook, return_func, **kwargs):
-            ret = hook(**kwargs)
-            if return_func:
-                try:
+            try:
+                ret = hook(**kwargs)
+                if return_func:
                     return_func(ret)
-                except Exception as ex:
-                    self.log('error', 'Exception occurred processing hook "%s": %s' % (repr(hook.func), repr(ex)))
-                    self.log('error', traceback.format_exc())
-                    return None
-            return ret
+                return ret
+            except Exception as ex:
+                self.log('error', 'Exception occurred processing hook "%s": %s' % (repr(hook.func), repr(ex)))
+                self.log('error', traceback.format_exc())
+            return None
 
         if hook.threaded:
             t = threading.Thread(target=thread, args=(hook, return_func), kwargs=kwargs)
