@@ -7,7 +7,7 @@ import urllib.request
 @yui.threaded
 @yui.command('urbandict', 'urban', 'ud')
 def ud(argv):
-    """Urban Dictionary search. Usage: ud <term> [result nr.]"""
+    """Urban Dictionary search. Usage: urbandict <term> [result nr.]"""
     if len(argv) < 2:
         return
 
