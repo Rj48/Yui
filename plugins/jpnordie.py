@@ -1,86 +1,77 @@
-import re
-from collections import deque
+from langdetect import detect, DetectorFactory, lang_detect_exception
 
-JPN_RANGES = [
-    (0x3000, 0x303f),
-    (0x3040, 0x309f),
-    (0x30a0, 0x30ff),
-    (0xff00, 0xff21),
-    (0xff3b, 0xff40),
-    (0xff5b, 0xffef),
-    (0x4e00, 0x9faf)]
+yui.db.execute("""\
+CREATE TABLE IF NOT EXISTS langstats(
+    channel TEXT COLLATE NOCASE,
+    nick TEXT COLLATE NOCASE,
+    lang TEXT,
+    cnt INTEGER,
+    UNIQUE(channel, nick, lang));""")
+yui.db.commit()
 
-SYMBOLS_RANGES = [
-    (0x0, 0x40),
-    (0x5b, 0x60),
-    (0x7b, 0x7f)]
-
-ALLOWED = JPN_RANGES + SYMBOLS_RANGES
-
-MIN_ALLOWED_PERCENT = 0.5
-
-PERCENTAGES = {}
-
-ACTIVE_CHANNELS = []
+DetectorFactory.seed = 0
+ACTIVE_CHANNELS = {}
+LANGCOUNTS = {}
+CHANCES = 10
 
 
-def is_allowed(char):
-    for r in ALLOWED:
-        if r[0] <= ord(char) <= r[1]:
-            return True
-    return False
-
-
-def chars_allowed(string):
-    a = 0
-    for c in string:
-        if is_allowed(c):
-            a += 1
-    return a
-
-
-def is_word(word):
-    return re.search('^https?://', word) is None  # don't consider links spoken language
-
-
-def overall_percent(nick):
-    chars = 0
-    allowed = 0
-    for t in PERCENTAGES[nick]:
-        chars += t[0]
-        allowed += t[1]
-    return allowed/chars
+def clamp(n, min_val, max_val):
+    return max(min_val, min(n, max_val))
 
 
 @yui.event('msgRecv')
-def recv(channel, user, msg):
-    global PERCENTAGES
+def recv(channel, user, msg, is_cmd):
+    if is_cmd:
+        return
+
+    try:
+        lang = detect(msg)
+    except lang_detect_exception.LangDetectException as e:
+        return
+
+    yui.db.execute('INSERT OR IGNORE INTO langstats(channel, nick, lang, cnt) VALUES(?, ?, ?, 0);',
+                   (channel, user.nick, lang))
+    yui.db.execute('UPDATE langstats SET cnt = cnt + 1 WHERE channel = ? AND nick = ? AND lang = ?;',
+                   (channel, user.nick, lang))
+    yui.db.commit()
+
     if channel not in ACTIVE_CHANNELS:
         return
 
-    key = channel+user.nick
-    if key not in PERCENTAGES.keys():
-        PERCENTAGES[key] = deque([(50, 50)] * 10, 3)
+    key = channel + user.nick
+    if key not in LANGCOUNTS:
+        LANGCOUNTS[key] = CHANCES
 
-    msg = ''.join([w for w in msg.split() if is_word(w)])
-    if len(msg) < 1:
-        return
+    LANGCOUNTS[key] = clamp(LANGCOUNTS[key] + (1 if lang == ACTIVE_CHANNELS[channel] else -1),
+                            0,
+                            CHANCES)
 
-    a = chars_allowed(msg)
-    PERCENTAGES[key].appendleft((len(msg), a))
+    if LANGCOUNTS[key] < 2:
+        return '%s: %sでおk' % (user.nick, ACTIVE_CHANNELS[channel])
 
-    if overall_percent(key) < MIN_ALLOWED_PERCENT:
-        yui.kick(channel, user.nick, '日本語でおk')
-        PERCENTAGES.pop(key)
+    if LANGCOUNTS[key] < 1:
+        yui.kick(channel, user.nick, '(´・ω・｀)')
 
 
 @yui.admin
-@yui.command('jpnordie')
-def switch(channel):
-    """Switch jpnordie on/off for the current channel."""
-    if channel not in ACTIVE_CHANNELS:
-        ACTIVE_CHANNELS.append(channel)
-        return '頑張ってね o/'
-    else:
-        ACTIVE_CHANNELS.remove(channel)
+@yui.command('langordie')
+def switch(channel, argv):
+    """Keep people talking in ONE language. Usage: langordie <2 char lang code>"""
+    if len(argv) < 2:
+        return
+    if channel in ACTIVE_CHANNELS:
+        ACTIVE_CHANNELS.pop(channel)
         return 'まぁ、やめよっか'
+    ACTIVE_CHANNELS[channel] = argv[1]
+    return '頑張ってね o/'
+
+
+@yui.command('langstats', 'ls')
+def langstats(channel, user, argv):
+    """Language stats for someone in this channel. Usage: langstats [nick]"""
+    n = user.nick
+    if len(argv) > 1:
+        n = argv[1]
+    res = yui.db.execute('SELECT lang, cnt FROM langstats WHERE channel = ? AND nick = ? ORDER BY cnt DESC;',
+                         (channel, n))
+    return yui.unhighlight_word(n) + ': ' + ', '.join(['%d %s' % (r[1], r[0]) for r in res.fetchall()])
