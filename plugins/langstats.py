@@ -1,4 +1,4 @@
-from langdetect import detect, DetectorFactory, lang_detect_exception
+from langdetect import detect, detect_langs, DetectorFactory, lang_detect_exception
 
 yui.db.execute("""\
 CREATE TABLE IF NOT EXISTS langstats(
@@ -79,3 +79,14 @@ def langstats(channel, user, argv):
     rows = res.fetchall()
     if len(rows) > 0:
         return yui.unhighlight_word(n) + ': ' + ', '.join(['%d %s' % (r[1], r[0]) for r in rows])
+
+
+@yui.command('langdetect', 'ld')
+def langdet(argv):
+    """Try to detect what language a string likely is. Usage: langdetect <string>"""
+    try:
+        lang = detect_langs(' '.join(argv[1:]))
+    except lang_detect_exception.LangDetectException as e:
+        return 'No idea what language that is.'
+
+    return ', '.join(['%s:%.2f' % (n.lang, n.prob) for n in lang])
