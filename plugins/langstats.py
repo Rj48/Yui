@@ -59,7 +59,9 @@ def recv(channel, user, msg, is_cmd):
 @yui.command('langordie')
 def switch(channel, argv):
     """Keep people talking in ONE language. Usage: langordie [lang_code [channel]]"""
-    c = channel if len(argv) < 2 else argv[2]
+    if len(argv) < 2:
+        return
+    c = channel if len(argv) < 3 else argv[2]
     if c in ACTIVE_CHANNELS:
         ACTIVE_CHANNELS.pop(c)
         return 'まぁ、やめよっか'
