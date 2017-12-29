@@ -43,11 +43,11 @@ class Hook:
 
 
 class Yui(IRCClient):
-    def __init__(self, configPath):
+    def __init__(self, config_path):
         builtins.yui = self
 
         # load config
-        self.configPath = configPath
+        self.configPath = config_path
         self.config = None
         if not self.load_config():
             quit()
@@ -271,7 +271,7 @@ class Yui(IRCClient):
         return True
 
     def config_val(self, *args, **kwargs):
-        """Return a value from the config dict hirarchy, or a default value, if
+        """Return a value from the config dict hierarchy, or a default value, if
         it doesn't exist"""
         default = kwargs['default'] if 'default' in kwargs else None
         c = self.config
@@ -314,10 +314,10 @@ class Yui(IRCClient):
 
     def unload_plugin(self, name):
         """Unload a plugin by its name"""
-        toDel = [f for f, h in self.hooks.items() if h.plugin == name]
-        if len(toDel) < 1:
+        to_del = [f for f, h in self.hooks.items() if h.plugin == name]
+        if len(to_del) < 1:
             return False
-        for d in toDel:
+        for d in to_del:
             del self.hooks[d]
         return True
 
