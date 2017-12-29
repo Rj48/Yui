@@ -1,3 +1,5 @@
+# coding=utf-8
+
 @yui.event('msgRecv')
 @yui.event('noticeRecv')
 def query(channel, user, msg):
