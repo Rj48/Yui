@@ -4,3 +4,4 @@ google==1.9.3
 wikipedia==1.4.0
 python-dateutil==2.6.0
 PySocks==1.6.6
+wolframalpha==3.0
