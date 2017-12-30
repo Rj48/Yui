@@ -1,3 +1,5 @@
+# coding=utf-8
+
 from langdetect import detect, detect_langs, DetectorFactory, lang_detect_exception
 
 yui.db.execute("""\
