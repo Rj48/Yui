@@ -23,7 +23,7 @@ def search(regex, base_dir, file_contains=''):
 
 
 def underline(regex, line):
-    return re.sub(regex, lambda m: '\x1F' + m[0] + ""'\x1F', line)
+    return re.sub(regex, lambda m: '\x1F' + m[0] + ""'\x1F', line, re.IGNORECASE)
 
 
 @yui.threaded
