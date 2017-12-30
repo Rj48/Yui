@@ -18,7 +18,12 @@ def search(regex, base_dir, file_contains=''):
                     for line in f:
                         line = line.decode('utf-8')
                         if reg.search(line):
-                            yield (file_path[len(base_dir) + 1:-3], ' '.join(line.split()))
+                            line = ' '.join(line.split())
+                            yield (file_path[len(base_dir) + 1:-3], line)
+
+
+def underline(regex, line):
+    return re.sub(regex, lambda m: '\x1F' + m[0] + ""'\x1F', line)
 
 
 @yui.threaded
@@ -34,6 +39,7 @@ def example(argv):
 
     se = search(argv[1], base, file_contains=argv[2] if len(argv) > 2 else '')
     try:
-        return '%s: %s' % random.choice(list(se))
+        file, line = random.choice(list(se))
+        return '%s: %s' % (file, underline(argv[1], line))
     except IndexError as e:
         return 'No matching sentences found'
