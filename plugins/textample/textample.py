@@ -19,7 +19,7 @@ def search(regex, base_dir, file_contains=''):
                         line = line.decode('utf-8')
                         if reg.search(line):
                             line = ' '.join(line.split())
-                            yield (file_path[len(base_dir) + 1:-3], line)
+                            yield (file_path[len(base_dir) + 1:-len('.gz')], line)
 
 
 def underline(regex, line):
