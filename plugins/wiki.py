@@ -20,7 +20,7 @@ def wiki(argv):
     article = ' '.join(argv)
     try:
         wikipedia.set_lang(lang)
-        summary = wikipedia.summary(article)
+        summary = ' '.join(wikipedia.summary(article).split())
     except Exception as ex:
         return "Couldn't find an article for '%s'" % article
     return summary

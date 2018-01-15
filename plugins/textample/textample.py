@@ -39,7 +39,11 @@ def example(argv):
 
     se = search(argv[1], base, file_contains=argv[2] if len(argv) > 2 else '')
     try:
-        file, line = random.choice(list(se))
-        return '%s: %s' % (file, underline(argv[1], line))
+        ret = []
+        l = list(se)
+        for _ in range(0,20):
+            file, line = random.choice(l)
+            ret.append('%s: %s' % (file, underline(argv[1], line)))
+        return '\n'.join(ret)
     except IndexError as e:
         return 'No matching sentences found'

@@ -145,10 +145,19 @@ class Yui(IRCClient):
 
     def send_msg(self, channel, msg, notice=False):
         """Send a PRIVMSG or NOTICE to a nick or channel"""
+        if not channel or not msg:
+            return
+
+        # pipe the message through pre_send filters first
+        for hook in self.find_hooks(lambda h: 'pre_send' in h.event):
+            ret = self.call_hook(hook, None, msg=msg, channel=channel)
+            if ret:
+                msg = ret
+
         if notice:
-            self.send_notice(channel, self.trim_to_max_len(msg, '...'))
+            self.send_notice(channel, msg)
         else:
-            self.send_privmsg(channel, self.trim_to_max_len(msg, '...'))
+            self.send_privmsg(channel, msg)
         self.fire_event('msgSend', None, channel=channel, msg=msg)
 
     def get_nick(self):

@@ -38,11 +38,18 @@ class IRCClient(object):
 
         self.channel_nicks = {}  # channel name -> set of nicks
 
-        self.max_msg_len = 400
-
         self.bad_chars_regex = re.compile(r'[\r\n]+')
+        self.msg_end_bytes = self.encode('\r\n')  # line break all irc messages need to end with
+        self.max_msg_bytes = 512 - len(self.msg_end_bytes)
+        self.safe_msg_bytes = 400  # reasonable upper limit of bytes that should be sent via send_msg etc.
 
         signal.signal(signal.SIGINT, lambda signum, frame: self.quit('ctrl-C'))
+
+    def encode(self, string):
+        return string.encode(self.encoding)
+
+    def decode(self, bytes):
+        return bytes.decode(self.encoding)
 
     def send_raw(self, msg):
         """Send a raw line to the server"""
@@ -50,14 +57,10 @@ class IRCClient(object):
             # strip newlines
             stripped = self.bad_chars_regex.sub(' ', msg)
 
-            # clamp length
-            if len(stripped) > self.max_msg_len:
-                stripped = stripped[:self.max_msg_len]
-
-            stripped += '\r\n'
             encoded = stripped.encode(self.encoding)
 
-            self.socket.send(encoded)
+            # really badly trim msg to max 512bytes (esp. stupid with multibyte chars)
+            self.socket.send(encoded[:self.max_msg_bytes] + self.msg_end_bytes)
 
         except TypeError as ex:
             return False  # invalid msg
@@ -67,21 +70,6 @@ class IRCClient(object):
             self.on_log('Exception while sending data: %s' % repr(ex))
             self.disconnect()
         return True
-
-    # TODO: this seems a bit inefficient
-    def trim_to_max_len(self, string, trail=''):
-        """Trim a string to the max. message (byte) length, replace
-        last few characters with a given trail (e.g. '...')"""
-        if not string:
-            return None
-        enc_str = string.encode(self.encoding)
-        if len(enc_str) < self.max_msg_len:
-            return string
-        enc_trail = trail.encode(self.encoding)
-        enc_str = enc_str[:self.max_msg_len - len(enc_trail)]
-        dec = enc_str.decode(self.encoding, 'ignore')
-        dec += trail
-        return dec
 
     def joined_channels(self):
         return self.channel_nicks.keys()
