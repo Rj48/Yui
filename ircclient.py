@@ -46,10 +46,10 @@ class IRCClient(object):
         signal.signal(signal.SIGINT, lambda signum, frame: self.quit('ctrl-C'))
 
     def encode(self, string):
-        return string.encode(self.encoding)
+        return string.encode(self.encoding, 'ignore')
 
     def decode(self, bytes):
-        return bytes.decode(self.encoding)
+        return bytes.decode(self.encoding, 'ignore')
 
     def send_raw(self, msg):
         """Send a raw line to the server"""

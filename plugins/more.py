@@ -33,6 +33,9 @@ def pre_send(msg, channel):
 @yui.command('more')
 def more(channel):
     global LOCK
+    if channel not in TEXT.keys():
+        return
+
     LINE[channel] += 1
     n = LINE[channel]
 
