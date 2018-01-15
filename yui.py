@@ -421,7 +421,7 @@ class Yui(IRCClient):
             return
 
         # fire generic event
-        self.fire_event('msgRecv', send_msg, **kwargs)
+        self.fire_event('pre_recv', send_msg, **kwargs)
 
         # parse command
         if is_cmd:

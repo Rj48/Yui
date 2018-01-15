@@ -21,7 +21,7 @@ def getRandomExcept(arr, ex):
     return random.choice(arrEx)
 
 
-@yui.event('msgRecv')
+@yui.event('pre_recv')
 def greetings(msg, channel):
     global phrases
 

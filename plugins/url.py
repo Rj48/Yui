@@ -156,7 +156,7 @@ def get_url_title(url):
     return ', '.join(info)
 
 
-@yui.event('msgRecv')
+@yui.event('pre_recv')
 def url(msg, channel):
     # find urls in channel message
     words = msg.split()

@@ -154,7 +154,7 @@ def contains_mention(split):
 
 
 # add new sentences as they come in
-@yui.event('msgRecv')
+@yui.event('pre_recv')
 def recv(channel, user, msg):
     # train the markov chains
     if channel == user.nick:  # ignore query

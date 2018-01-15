@@ -19,7 +19,7 @@ def action(nick, act):
     yui.db.commit()
 
 
-@yui.event('msgRecv')
+@yui.event('pre_recv')
 def recv(user, msg, channel):
     if not channel.startswith("#"):
         return
