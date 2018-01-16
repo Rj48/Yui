@@ -6,8 +6,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from time import time
-import dateutil.parser
 
+import dateutil.parser
 import socks
 from sockshandler import SocksiPyHandler
 
@@ -63,15 +63,6 @@ def humanify(num):
         num = div
 
 
-# quote a query string
-def quote_qs(qs):
-    parts = urllib.parse.parse_qs(qs, keep_blank_values=True)
-    return '&'.join([
-        urllib.parse.quote(p) + '=' + urllib.parse.quote(v[0]) if v
-        else urllib.parse.quote(p)
-        for p, v in parts.items()])
-
-
 # returns a properly encoded url (escaped unicode etc)
 # or None if it's not a valid url
 def get_encoded_url(url):
@@ -86,8 +77,7 @@ def get_encoded_url(url):
     # handle unicode URLs
     url = urllib.request.urlunparse(
         p if i == 1
-        else quote_qs(p) if i == 4
-        else urllib.parse.quote(p)
+        else urllib.parse.quote(p, safe='/%+#&,._-')
         for i, p in enumerate(parts)
     )
     return url
