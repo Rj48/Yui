@@ -8,7 +8,7 @@ MSG_COUNT = yui.config_val('nickspam', 'msgCount', default=4)
 HIGHLIGHTS = {}
 
 
-@yui.event('pre_recv')
+@yui.event('msg_recv')
 def nickspam(msg, user, channel):
     # ignore query/pm
     if channel == user.nick:

@@ -4,7 +4,7 @@ LAST = {}
 REGEX = re.compile('s/(.*?)/(.*)')
 
 
-@yui.event('pre_recv')
+@yui.event('msg_recv')
 def replace(msg, channel, user):
     global LAST
 

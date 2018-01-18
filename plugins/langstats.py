@@ -21,7 +21,7 @@ def clamp(n, min_val, max_val):
     return max(min_val, min(n, max_val))
 
 
-@yui.event('pre_recv')
+@yui.event('msg_recv')
 def recv(channel, user, msg, is_cmd):
     if is_cmd:
         return
