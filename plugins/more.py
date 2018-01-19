@@ -32,6 +32,7 @@ def pre_send(msg, channel):
 
 @yui.command('more')
 def more(channel):
+    """Show more output of a command issued previously."""
     global LOCK
     if channel not in TEXT.keys():
         return
