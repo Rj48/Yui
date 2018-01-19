@@ -41,8 +41,8 @@ def example(argv):
     try:
         ret = []
         l = list(se)
-        for _ in range(0,20):
-            file, line = random.choice(l)
+        size = 20 if len(l) > 20 else len(l)
+        for file, line in random.sample(l, size):
             ret.append('%s: %s' % (file, underline(argv[1], line)))
         return '\n'.join(ret)
     except IndexError as e:
