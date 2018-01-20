@@ -77,7 +77,7 @@ def get_encoded_url(url):
     # handle unicode URLs
     url = urllib.request.urlunparse(
         p if i == 1
-        else urllib.parse.quote(p, safe='/%+#&,._-')
+        else urllib.parse.quote(p, safe='/%+#&,._-=')
         for i, p in enumerate(parts)
     )
     return url
