@@ -158,7 +158,7 @@ class Yui(IRCClient):
             self.send_notice(channel, msg)
         else:
             self.send_privmsg(channel, msg)
-        self.fire_event('msgSend', None, channel=channel, msg=msg)
+        self.fire_event('msg_send', None, channel=channel, msg=msg)
 
     def get_nick(self):
         """Return the bot's current nickname"""
@@ -424,8 +424,8 @@ class Yui(IRCClient):
                   'channel': target,
                   'is_cmd': is_cmd}
 
-        # preRecv hooks can prevent any further command parsing/events by returning false
-        pre = self.fire_event('preRecv', None, **kwargs)
+        # pre_recv hooks can prevent any further command parsing/events by returning false
+        pre = self.fire_event('pre_recv', None, **kwargs)
         if False in pre:
             return
 
