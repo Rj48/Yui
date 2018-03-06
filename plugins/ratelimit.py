@@ -4,7 +4,7 @@ import time
 from collections import deque
 
 timeframe = yui.config_val('ratelimit', 'timeframe', default=60.0)
-max_msg = yui.config_val('ratelimit', 'messages', default=6.0) + 1
+max_msg = yui.config_val('ratelimit', 'messages', default=6.0)
 ignore_minutes = yui.config_val('ratelimit', 'ignoreMinutes', default=3.0)
 ignore_seconds = 60.0 * ignore_minutes
 
