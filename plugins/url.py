@@ -147,7 +147,9 @@ def get_url_title(url):
 
 
 @yui.event('msg_recv')
-def url(msg, channel):
+def url(msg, channel, is_cmd):
+    if is_cmd:
+        return
     # find urls in channel message
     words = msg.split()
     titles = []
