@@ -1,3 +1,5 @@
+Pillow
+humanize
 langdetect
 feedparser
 google==1.9.3
