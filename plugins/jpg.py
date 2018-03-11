@@ -31,7 +31,7 @@ def jpeg(argv):
 
     clen = int(req.headers.get('Content-Length', 0))
     if clen > MAX_SIZE:
-        return 'Content-Length {} too big'.format(clen)
+        return 'Image too big ({}, max. is {})'.format(humanize.naturalsize(clen), humanize.naturalsize(MAX_SIZE))
 
     ctype = req.headers.get('Content-Type')
     if not TYPE_RE.fullmatch(ctype):
