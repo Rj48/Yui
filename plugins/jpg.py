@@ -48,6 +48,7 @@ def jpeg(argv):
 
     img = Image.open(data)
     img.thumbnail((resize, resize), Image.ANTIALIAS)
+    img = img.convert("RGB")
     data = BytesIO()
     img.save(data, "JPEG", optimize=True, quality=qual)
     size = data.tell()
